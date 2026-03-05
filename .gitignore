@@ -1,0 +1,47 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Deep Learning models
+*.pt
+*.pth
+*.onnx
+*.h5
+*.ckpt
+
+# Dataset
+input_videos/
+
+#models and training artifacts
+models/
+training/
+
+# Videos
+*.mp4
+*.avi
+*.mov
+*.mkv
+
+# Outputs
+runs/
+output_videos/
+
+
+# Environment
+tennis_env/
+.env/
+.venv/
+
+# Editor
+.vscode/
+.idea/
+
+# System files
+.DS_Store
+Thumbs.db
+
+#Other
+draft/
+tracker_stubs/
+analysis/
