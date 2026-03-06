@@ -13,9 +13,13 @@ class PlayerTracker:
     def choose_and_filter_players(self, court_keypoints, player_detections):
         player_detections_first_frame = player_detections[0]
         chosen_player = self.choose_players(court_keypoints, player_detections_first_frame)
+        # THAY BẰNG ĐOẠN NÀY:
         filtered_player_detections = []
         for player_dict in player_detections:
-            filtered_player_dict = {track_id: bbox for track_id, bbox in player_dict.items() if track_id in chosen_player}
+            filtered_player_dict = {}
+            for player_id, track_id in chosen_player.items():
+                if track_id in player_dict:
+                    filtered_player_dict[player_id] = player_dict[track_id]
             filtered_player_detections.append(filtered_player_dict)
         return filtered_player_detections
 
@@ -81,31 +85,38 @@ class PlayerTracker:
             print(f"⚠️ CHỈ TÌM THẤY 1 CẦU THỦ: {valid_players}")
             return valid_players
         
-        if len(valid_players) == 2:
-            print(f"✓✓ CHỌN 2 CẦU THỦ: {valid_players}")
-            return valid_players
         
-        # Nếu có > 2 người, chọn 2 người xa nhau nhất
-        if len(valid_players) > 2:
-            print(f"⚠️ CÓ {len(valid_players)} NGƯỜI TRONG SÂN, chọn 2 xa nhau nhất...")
-            max_distance = 0
-            chosen_pair = [valid_players[0], valid_players[1]]
-            
-            for i in range(len(valid_players)):
-                for j in range(i+1, len(valid_players)):
-                    id1, id2 = valid_players[i], valid_players[j]
-                    center1 = get_center_of_bbox(player_dict[id1])
-                    center2 = get_center_of_bbox(player_dict[id2])
-                    dist = measure_distance(center1, center2)
-                    
-                    if dist > max_distance:
-                        max_distance = dist
-                        chosen_pair = [id1, id2]
-            
-            print(f"✓✓ CHỌN: {chosen_pair} (xa nhau {max_distance:.2f}px)")
-            return chosen_pair
-        
-        return valid_players
+
+        # THAY BẰNG ĐOẠN NÀY:
+        if len(valid_players) >= 2:
+            if len(valid_players) > 2:
+                print(f"⚠️ CÓ {len(valid_players)} NGƯỜI TRONG SÂN, chọn 2 xa nhau nhất...")
+                max_distance = 0
+                chosen_pair = [valid_players[0], valid_players[1]]
+                for i in range(len(valid_players)):
+                    for j in range(i+1, len(valid_players)):
+                        id1, id2 = valid_players[i], valid_players[j]
+                        center1 = get_center_of_bbox(player_dict[id1])
+                        center2 = get_center_of_bbox(player_dict[id2])
+                        dist = measure_distance(center1, center2)
+                        if dist > max_distance:
+                            max_distance = dist
+                            chosen_pair = [id1, id2]
+                valid_players = chosen_pair
+
+            sorted_by_y = sorted(
+                valid_players,
+                key=lambda tid: get_center_of_bbox(player_dict[tid])[1]
+            )
+            print(f"✓ Player 1 (nửa trên): Track ID {sorted_by_y[0]}")
+            print(f"✓ Player 2 (nửa dưới): Track ID {sorted_by_y[1]}")
+            return {1: sorted_by_y[0], 2: sorted_by_y[1]}
+
+        if len(valid_players) == 1:
+            print(f"⚠️ CHỈ TÌM THẤY 1 CẦU THỦ: {valid_players}")
+            return {1: valid_players[0]}
+
+        return {}
 
 
     def detect_frames(self,frames, read_from_stub=False, stub_path=None):

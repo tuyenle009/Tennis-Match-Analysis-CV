@@ -33,6 +33,28 @@ class MiniCourt():
                                                 self.court_drawing_width
                                             )
 
+    def set_court_lines(self):
+        self.lines = [
+            (0, 2),
+            (4, 5),
+            (6,7),
+            (1,3),
+            (0,1),
+            (8,9),
+            (10,11),
+            (12,13),
+            (2,3)
+        ]
+
+    def set_mini_court_position(self):
+        self.court_start_x = self.start_x + self.padding_court
+        self.court_start_y = self.start_y + self.padding_court
+        self.court_end_x = self.end_x - self.padding_court
+        self.court_end_y = self.end_y - self.padding_court
+        self.court_drawing_width = self.court_end_x - self.court_start_x
+
+
+
     def set_court_drawing_key_points(self):
         drawing_key_points = [0]*28
 
@@ -79,25 +101,8 @@ class MiniCourt():
 
         self.drawing_key_points=drawing_key_points
 
-    def set_court_lines(self):
-        self.lines = [
-            (0, 2),
-            (4, 5),
-            (6,7),
-            (1,3),
-            (0,1),
-            (8,9),
-            (10,11),
-            (12,13),
-            (2,3)
-        ]
 
-    def set_mini_court_position(self):
-        self.court_start_x = self.start_x + self.padding_court
-        self.court_start_y = self.start_y + self.padding_court
-        self.court_end_x = self.end_x - self.padding_court
-        self.court_end_y = self.end_y - self.padding_court
-        self.court_drawing_width = self.court_end_x - self.court_start_x
+
 
     def set_canvas_background_box_position(self,frame):
         frame= frame.copy()
@@ -186,12 +191,10 @@ class MiniCourt():
         return  mini_court_player_position
 
     def convert_bounding_boxes_to_mini_court_coordinates(self,player_boxes, ball_boxes, original_court_key_points ):
+        # THAY BẰNG ĐOẠN NÀY:
         player_heights = {
             1: constants.PLAYER_1_HEIGHT_METERS,
             2: constants.PLAYER_2_HEIGHT_METERS,
-            3: constants.PLAYER_2_HEIGHT_METERS,
-            4: constants.PLAYER_2_HEIGHT_METERS,
-            5: constants.PLAYER_2_HEIGHT_METERS,
         }
 
         output_player_boxes= []
@@ -223,7 +226,17 @@ class MiniCourt():
                 # Get Player height in pixels
                 frame_index_min = max(0, frame_num-20)
                 frame_index_max = min(len(player_boxes), frame_num+50)
-                bboxes_heights_in_pixels = [get_height_of_bbox(player_boxes[i][player_id]) for i in range (frame_index_min,frame_index_max)]
+                
+                # THAY BẰNG ĐOẠN NÀY:
+                bboxes_heights_in_pixels = [
+                    get_height_of_bbox(player_boxes[i][player_id]) 
+                    for i in range(frame_index_min, frame_index_max)
+                    if player_id in player_boxes[i]  # bỏ qua frame không có player
+                ]
+
+                if not bboxes_heights_in_pixels:
+                    continue  # không có frame nào có player này thì bỏ qua
+
                 max_player_height_in_pixels = max(bboxes_heights_in_pixels)
 
                 mini_court_player_position = self.get_mini_court_coordinates(foot_position,
