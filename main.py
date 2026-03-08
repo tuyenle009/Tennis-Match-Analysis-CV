@@ -5,7 +5,7 @@ from mini_court import MiniCourt
 import cv2
 
 def main():
-    number_of_vid= 4
+    number_of_vid= 8
     input_video_path = f'input_videos/inp_vid{number_of_vid}.mp4'
     video_frames = read_video(input_video_path)
     # Detect players and balls in the video frames
@@ -13,10 +13,11 @@ def main():
     ball_tracker = BallTracker(model_path='models/yolov8_best_50e.pt')
     player_detections = player_tracker.detect_frames(video_frames, 
                                                      read_from_stub=False,
-                                                     stub_path=f'tracker_stubs/player_detections_{number_of_vid}.pkl')
+                                                     stub_path=f'tracker_stubs/player_detections_{number_of_vid}.pkl'
+                                                     )
 
     ball_detections = ball_tracker.detect_frames(video_frames,
-                                                     read_from_stub=True,
+                                                     read_from_stub=False,
                                                      stub_path=f"tracker_stubs/ball_detections_{number_of_vid}.pkl"
                                                      )
     

@@ -11,8 +11,14 @@ class PlayerTracker:
         self.model = YOLO(model_path)
 
     def choose_and_filter_players(self, court_keypoints, player_detections):
-        player_detections_first_frame = player_detections[0]
-        chosen_player = self.choose_players(court_keypoints, player_detections_first_frame)
+        # Tìm frame đầu tiên trong 10 frame đầu có đủ 2 cầu thủ
+        chosen_player = {}
+        for i in range(min(10, len(player_detections))):
+            chosen_player = self.choose_players(court_keypoints, player_detections[i])
+            if len(chosen_player) == 2:
+                print(f"✓ Chọn cầu thủ từ frame {i}")
+                break
+
         filtered_player_detections = []
         for player_dict in player_detections:
             filtered_player_dict = {}
