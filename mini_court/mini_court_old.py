@@ -20,45 +20,11 @@ class MiniCourt():
         self.drawing_rectangle_height = 500
         self.buffer = 50
         self.padding_court=20
-        self.homography_matrix = None  
 
         self.set_canvas_background_box_position(frame)
         self.set_mini_court_position()
         self.set_court_drawing_key_points()
         self.set_court_lines()
-
-    def set_homography(self, original_court_key_points):
-        """
-        Tính homography từ 4 góc sân gốc → 4 góc mini court.
-        Gọi 1 lần sau khi có court_keypoints.
-        """
-        src = np.float32([
-            [original_court_key_points[0], original_court_key_points[1]],  # top-left
-            [original_court_key_points[2], original_court_key_points[3]],  # top-right
-            [original_court_key_points[4], original_court_key_points[5]],  # bottom-left
-            [original_court_key_points[6], original_court_key_points[7]],  # bottom-right
-        ])
-
-        dst = np.float32([
-            [self.drawing_key_points[0], self.drawing_key_points[1]],  # top-left
-            [self.drawing_key_points[2], self.drawing_key_points[3]],  # top-right
-            [self.drawing_key_points[4], self.drawing_key_points[5]],  # bottom-left
-            [self.drawing_key_points[6], self.drawing_key_points[7]],  # bottom-right
-        ])
-
-        self.homography_matrix = cv2.getPerspectiveTransform(src, dst)
-
-    def get_mini_court_coordinates_homography(self, foot_position):
-        """
-        Ánh xạ foot_position (pixel ảnh gốc) → tọa độ mini court.
-        """
-        if self.homography_matrix is None:
-            raise ValueError("Homography chưa được set! Gọi set_homography() trước.")
-        
-        pt = np.float32([[list(foot_position)]])  # shape (1, 1, 2)
-        transformed = cv2.perspectiveTransform(pt, self.homography_matrix)
-        x, y = transformed[0][0]
-        return (float(x), float(y))
 
 
     def convert_meters_to_pixels(self, meters):
@@ -224,56 +190,82 @@ class MiniCourt():
 
         return  mini_court_player_position
 
-    def convert_bounding_boxes_to_mini_court_coordinates(self, player_boxes, ball_boxes, original_court_key_points):
-        
-        # Tính homography nếu chưa có
-        if self.homography_matrix is None:
-            self.set_homography(original_court_key_points)
+    def convert_bounding_boxes_to_mini_court_coordinates(self,player_boxes, ball_boxes, original_court_key_points ):
+        # THAY BẰNG ĐOẠN NÀY:
+        player_heights = {
+            1: constants.PLAYER_1_HEIGHT_METERS,
+            2: constants.PLAYER_2_HEIGHT_METERS,
+        }
 
-        output_player_boxes = []
-        output_ball_boxes = []
+        output_player_boxes= []
+        output_ball_boxes= []
+
         last_ball_position = None
-
         for frame_num, player_bbox in enumerate(player_boxes):
-
-            # ── Xác định vị trí bóng frame này ──
             if frame_num < len(ball_boxes) and ball_boxes[frame_num] and 1 in ball_boxes[frame_num]:
                 ball_box = ball_boxes[frame_num][1]
                 ball_position = get_center_of_bbox(ball_box)
                 last_ball_position = ball_position
+                closest_player_id_to_ball = min(player_bbox.keys(), key=lambda x: measure_distance(ball_position, get_center_of_bbox(player_bbox[x])))
             else:
-                ball_position = last_ball_position
+                ball_position = last_ball_position  # dùng vị trí bóng gần nhất trước đó nếu bị miss
+                closest_player_id_to_ball = None if ball_position is None else min(player_bbox.keys(), key=lambda x: measure_distance(ball_position, get_center_of_bbox(player_bbox[x])))
 
-            # ── Tìm player gần bóng nhất (để vẽ bóng phía player đó) ──
-            if ball_position is not None and len(player_bbox) > 0:
-                closest_player_id_to_ball = min(
-                    player_bbox.keys(),
-                    key=lambda pid: measure_distance(ball_position, get_center_of_bbox(player_bbox[pid]))
-                )
-            else:
-                closest_player_id_to_ball = None
-
-            # ── Convert player positions ──
             output_player_bboxes_dict = {}
             for player_id, bbox in player_bbox.items():
                 foot_position = get_foot_position(bbox)
+                if player_id not in player_heights:
+                    # Bỏ qua vòng lặp hiện tại và chuyển sang ID tiếp theo
+                    continue 
 
-                # Dùng homography để ánh xạ foot → mini court
-                mini_court_player_position = self.get_mini_court_coordinates_homography(foot_position)
+                # Get The closest keypoint in pixels
+                closest_key_point_index = get_closest_keypoint_index(foot_position,original_court_key_points, [0,2,12,13])
+                closest_key_point = (original_court_key_points[closest_key_point_index*2], 
+                                     original_court_key_points[closest_key_point_index*2+1])
+
+                # Get Player height in pixels
+                frame_index_min = max(0, frame_num-20)
+                frame_index_max = min(len(player_boxes), frame_num+50)
+                
+                # THAY BẰNG ĐOẠN NÀY:
+                bboxes_heights_in_pixels = [
+                    get_height_of_bbox(player_boxes[i][player_id]) 
+                    for i in range(frame_index_min, frame_index_max)
+                    if player_id in player_boxes[i]  # bỏ qua frame không có player
+                ]
+
+                if not bboxes_heights_in_pixels:
+                    continue  # không có frame nào có player này thì bỏ qua
+
+                max_player_height_in_pixels = max(bboxes_heights_in_pixels)
+
+                mini_court_player_position = self.get_mini_court_coordinates(foot_position,
+                                                                            closest_key_point, 
+                                                                            closest_key_point_index, 
+                                                                            max_player_height_in_pixels,
+                                                                            player_heights[player_id]
+                                                                            )
+                
                 output_player_bboxes_dict[player_id] = mini_court_player_position
 
-                # ── Convert ball position (gắn vào player gần bóng nhất) ──
+                # Chỉ vẽ bóng nếu có bóng và player là người gần bóng nhất
                 if ball_position is not None and closest_player_id_to_ball == player_id:
-                    mini_court_ball_position = self.get_mini_court_coordinates_homography(ball_position)
-                    output_ball_boxes.append({1: mini_court_ball_position})
-
+                    # Get The closest keypoint in pixels
+                    closest_key_point_index = get_closest_keypoint_index(ball_position,original_court_key_points, [0,2,12,13])
+                    closest_key_point = (original_court_key_points[closest_key_point_index*2], 
+                                        original_court_key_points[closest_key_point_index*2+1])
+                    
+                    mini_court_player_position = self.get_mini_court_coordinates(ball_position,
+                                                                            closest_key_point, 
+                                                                            closest_key_point_index, 
+                                                                            max_player_height_in_pixels,
+                                                                            player_heights[player_id]
+                                                                            )
+                    output_ball_boxes.append({1:mini_court_player_position})
             output_player_boxes.append(output_player_bboxes_dict)
 
-            # Nếu frame này không append ball (không có bóng hoặc không có player)
-            if ball_position is None or closest_player_id_to_ball is None:
-                output_ball_boxes.append({})
-
-        return output_player_boxes, output_ball_boxes
+        return output_player_boxes , output_ball_boxes
+    
 
 
     # def draw_points_on_mini_court(self,frames,postions, color=(0,255,0)):

@@ -7,7 +7,7 @@ from speed_estimator import SpeedEstimator
 import cv2
 
 def main():
-    number_of_vid = 8
+    number_of_vid = 11
     input_video_path = f'input_videos/inp_vid{number_of_vid}.mp4'
     video_frames = read_video(input_video_path)
 
@@ -38,6 +38,7 @@ def main():
 
     # Minicourt
     mini_court = MiniCourt(video_frames[0])
+    mini_court.set_homography(court_keypoints) 
 
     # Convert positions to mini court positions
     player_mini_court_detections, ball_mini_court_detections = mini_court.convert_bounding_boxes_to_mini_court_coordinates(
@@ -73,7 +74,6 @@ def main():
 
     # Save
     save_video(output_video_frames, f'output_videos/output_video_{number_of_vid}.avi')
-
 
 if __name__ == "__main__":
     main()
