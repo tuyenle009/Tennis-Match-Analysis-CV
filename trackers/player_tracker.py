@@ -206,11 +206,7 @@ class PlayerTracker:
             result = box.xyxy.tolist()[0]
             object_cls_id = box.cls.tolist()[0]
             object_cls_name = id_name_dict[object_cls_id]
-            if self.use_polygon:
-                if object_cls_name == "person":
-                    player_dict[track_id] = result
-            else:
-                if object_cls_name == "Player1":
+            if object_cls_name == "person":
                     player_dict[track_id] = result
 
         return player_dict

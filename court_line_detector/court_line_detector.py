@@ -20,6 +20,15 @@ class CourtLineDetector:
             torch.nn.Dropout(0.2),
             torch.nn.Linear(512, 14 * 2)
         )
+
+        # self.model.fc = torch.nn.Sequential(
+        #     torch.nn.Linear(self.model.fc.in_features, 512),
+        #     torch.nn.BatchNorm1d(512),
+        #     torch.nn.ReLU(),
+        #     torch.nn.Dropout(0.3),
+        #     torch.nn.Linear(512, 14 * 2)
+        # )
+
         
         # Load trained weights
         self.model.load_state_dict(checkpoint['model_state_dict'])
