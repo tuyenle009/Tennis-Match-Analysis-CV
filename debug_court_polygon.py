@@ -18,7 +18,7 @@ sys.path.append('../')
 # ════════════════════════════════════════════════════════════════════════════
 # CẤU HÌNH — chỉnh ở đây
 # ════════════════════════════════════════════════════════════════════════════
-VIDEO_PATH     = 'input_videos/inp_vid4.mp4'
+VIDEO_PATH     = 'input_videos/inp_vid2.mp4'
 OUTPUT_PATH    = 'output_videos/debug_polygon.jpg'
 PADDING_TOP    = 0.15
 PADDING_BOTTOM = 0.20

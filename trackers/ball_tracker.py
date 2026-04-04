@@ -78,7 +78,7 @@ class BallTracker:
         return ball_detections
 
     def detect_frame(self,frame):
-        results = self.model.predict(frame,conf=0.15)[0]
+        results = self.model.predict(frame,conf=0.2)[0]
 
         ball_dict = {}
         for box in results.boxes:

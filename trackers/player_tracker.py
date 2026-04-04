@@ -7,16 +7,20 @@ from utils import measure_distance, get_center_of_bbox, get_foot_position
 import numpy as np
 
 class PlayerTracker:
-    def __init__(self,model_path):
+    def __init__(self,model_path, use_polygon=True):
         self.model = YOLO(model_path)
+        self.use_polygon = use_polygon
 
     def choose_and_filter_players(self, court_keypoints, player_detections):
         # Tìm frame đầu tiên trong 10 frame đầu có đủ 2 cầu thủ
         chosen_player = {}
         for i in range(min(10, len(player_detections))):
-            chosen_player = self.choose_players(court_keypoints, player_detections[i])
+            if self.use_polygon:
+                chosen_player = self.choose_players(court_keypoints, player_detections[i])
+            else:
+                chosen_player = self.choose_players_by_model(player_detections[i])
             if len(chosen_player) == 2:
-                print(f"✓ Chọn cầu thủ từ frame {i}")
+                print(f"✓ Chọn cầu thủ từ frame {i} | polygon={self.use_polygon}")
                 break
 
         filtered_player_detections = []
@@ -27,6 +31,46 @@ class PlayerTracker:
                     filtered_player_dict[player_id] = player_dict[track_id]
             filtered_player_detections.append(filtered_player_dict)
         return filtered_player_detections
+
+    def choose_players_by_model(self, player_dict):
+        """
+        Dùng khi model đã detect đúng player, không cần polygon.
+        Chọn 2 người xa nhau nhất theo foot position.
+        """
+        print(f"\n=== [Model mode] Phân tích {len(player_dict)} người được detect ===")
+
+        if len(player_dict) == 0:
+            return {}
+        if len(player_dict) == 1:
+            tid = list(player_dict.keys())[0]
+            return {1: tid}
+
+        track_ids = list(player_dict.keys())
+
+        # Nếu đúng 2 người → dùng luôn
+        if len(track_ids) == 2:
+            sorted_by_y = sorted(track_ids, key=lambda tid: get_foot_position(player_dict[tid])[1])
+            return {1: sorted_by_y[0], 2: sorted_by_y[1]}
+
+        # Nếu hơn 2 → chọn 2 xa nhau nhất
+        max_distance = 0
+        chosen_pair = [track_ids[0], track_ids[1]]
+        for i in range(len(track_ids)):
+            for j in range(i + 1, len(track_ids)):
+                id1, id2 = track_ids[i], track_ids[j]
+                dist = measure_distance(
+                    get_foot_position(player_dict[id1]),
+                    get_foot_position(player_dict[id2])
+                )
+                if dist > max_distance:
+                    max_distance = dist
+                    chosen_pair = [id1, id2]
+
+        sorted_by_y = sorted(chosen_pair, key=lambda tid: get_foot_position(player_dict[tid])[1])
+        print(f"✓ Player 1 (nửa trên): Track ID {sorted_by_y[0]}")
+        print(f"✓ Player 2 (nửa dưới): Track ID {sorted_by_y[1]}")
+        return {1: sorted_by_y[0], 2: sorted_by_y[1]}
+
 
     def is_point_in_court(self, point, court_keypoints,
                           padding_top=0.15, padding_bottom=0.2, padding_sides=0.05):
@@ -162,8 +206,12 @@ class PlayerTracker:
             result = box.xyxy.tolist()[0]
             object_cls_id = box.cls.tolist()[0]
             object_cls_name = id_name_dict[object_cls_id]
-            if object_cls_name == "person":
-                player_dict[track_id] = result
+            if self.use_polygon:
+                if object_cls_name == "person":
+                    player_dict[track_id] = result
+            else:
+                if object_cls_name == "Player1":
+                    player_dict[track_id] = result
 
         return player_dict
 
