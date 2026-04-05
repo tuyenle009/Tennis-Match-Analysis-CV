@@ -96,21 +96,24 @@ class HeatmapGenerator:
 
     def draw_heatmap_on_last_frame(self, video_frames, player_mini_court_detections, mini_court,
                                    pad_x=30, pad_y=40):
-        """
-        Vẽ heatmap của cả 2 cầu thủ lên frame cuối cùng.
-        pad_x, pad_y: pixel mở rộng ra ngoài background rectangle của mini court.
-        """
-        last_frame = video_frames[-1].copy()
+        h, w = video_frames[0].shape[:2]
+        canvas = np.ones((h, w, 3), dtype=np.uint8) * 30
 
-        # Vẽ mini court nền trước
-        last_frame = mini_court.draw_background_rectangle(last_frame)
-        last_frame = mini_court.draw_court(last_frame)
+        canvas = mini_court.draw_background_rectangle(canvas)
+        canvas = mini_court.draw_court(canvas)
 
         for player_id in [1, 2]:
             heatmap = self.generate_heatmap(
                 player_mini_court_detections, player_id, mini_court,
                 pad_x=pad_x, pad_y=pad_y
             )
-            last_frame = self.overlay_heatmap_on_frame(last_frame, heatmap, mini_court, alpha=0.6)
+            canvas = self.overlay_heatmap_on_frame(canvas, heatmap, mini_court, alpha=0.6)
 
-        return last_frame
+        # Crop chỉ lấy vùng mini court + padding, KHÔNG resize
+        x1 = max(0, mini_court.start_x - pad_x)
+        y1 = max(0, mini_court.start_y - pad_y)
+        x2 = min(w, mini_court.end_x + pad_x)
+        y2 = min(h, mini_court.end_y + pad_y)
+        cropped = canvas[y1:y2, x1:x2]
+
+        return cropped
