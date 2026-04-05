@@ -3,11 +3,12 @@ from trackers import PlayerTracker, BallTracker
 from court_line_detector import CourtLineDetector
 from mini_court import MiniCourt
 from speed_estimator import SpeedEstimator
+from heatmap import HeatmapGenerator
 
 import cv2
 
 def main():
-    number_of_vid = 11
+    number_of_vid = 8
     input_video_path = f'input_videos/inp_vid{number_of_vid}.mp4'
     video_frames = read_video(input_video_path)
 
@@ -64,9 +65,9 @@ def main():
     output_video_frames = mini_court.draw_points_on_mini_court(output_video_frames, ball_mini_court_detections, color=(0, 255, 255))
 
     # ✅ THÊM: Vẽ tốc độ lên frame (sau khi draw bbox, trước frame number)
-    # output_video_frames = speed_estimator.draw_speed_on_frames(
-    #     output_video_frames, speeds, player_detections
-    # )
+    output_video_frames = speed_estimator.draw_speed_on_frames(
+        output_video_frames, speeds, player_detections
+    )
 
     # Draw frame number
     for i, frame in enumerate(output_video_frames):
@@ -74,6 +75,19 @@ def main():
 
     # Save
     save_video(output_video_frames, f'output_videos/output_video_{number_of_vid}.avi')
+
+
+    # Tạo heatmap
+    heatmap_gen = HeatmapGenerator(
+        court_width=mini_court.court_end_x - mini_court.court_start_x,
+        court_height=mini_court.court_end_y - mini_court.court_start_y
+    )
+
+    # Vẽ heatmap lên frame cuối
+    heatmap_frame = heatmap_gen.draw_heatmap_on_last_frame(
+        output_video_frames, player_mini_court_detections, mini_court
+    )
+    cv2.imwrite(f'output_videos/heatmap_{number_of_vid}.png', heatmap_frame)
 
 if __name__ == "__main__":
     main()
