@@ -77,17 +77,22 @@ def main():
     save_video(output_video_frames, f'output_videos/output_video_{number_of_vid}.avi')
 
 
-    # Tạo heatmap
+    # THAY BẰNG đoạn này:
     heatmap_gen = HeatmapGenerator(
         court_width=mini_court.court_end_x - mini_court.court_start_x,
         court_height=mini_court.court_end_y - mini_court.court_start_y
     )
 
-    # Vẽ heatmap lên frame cuối
-    heatmap_frame = heatmap_gen.draw_heatmap_on_last_frame(
-        output_video_frames, player_mini_court_detections, mini_court
+    frame_height = video_frames[0].shape[0]
+
+    heatmap_img = heatmap_gen.generate_heatmap_standalone(
+        player_detections,    # tọa độ frame gốc, KHÔNG phải mini_court
+        court_keypoints,
+        frame_height,
+        padding=60
     )
-    cv2.imwrite(f'output_videos/heatmap_{number_of_vid}.png', heatmap_frame)
+
+    cv2.imwrite(f'output_videos/heatmap_{number_of_vid}.png', heatmap_img)
 
 if __name__ == "__main__":
     main()

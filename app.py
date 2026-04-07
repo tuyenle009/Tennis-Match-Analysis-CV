@@ -94,7 +94,7 @@ st.markdown("""
     font-family: 'Rajdhani', sans-serif;
     font-size: 1.1rem;
     font-weight: 600;
-    color: #c8d8e8;
+    color: #1a3a6b;
     letter-spacing: 0.5px;
     border-left: 3px solid #4fc3f7;
     padding-left: 10px;
@@ -133,6 +133,14 @@ st.markdown("""
     transition: opacity 0.2s;
   }
   .stButton > button:hover { opacity: 0.88; }
+
+  /* Heatmap container */
+  .heatmap-container {
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    padding: 16px 0;
+  }
 </style>
 """, unsafe_allow_html=True)
 
@@ -401,86 +409,98 @@ if run_btn and uploaded and video_stem:
 # Results section (persistent via session_state)
 # ══════════════════════════════════════════════════════════════════════════════
 if "mp4_path" in st.session_state:
-    mp4_path    = st.session_state["mp4_path"]
+    mp4_path     = st.session_state["mp4_path"]
     heatmap_path = st.session_state["heatmap_path"]
     speed_stats  = st.session_state["speed_stats"]
 
-    # ── Section 1: Video + Heatmap ─────────────────────────────────────────
-    st.markdown('<div class="section-title">📹 Output Video &nbsp;&nbsp; | &nbsp;&nbsp; 🗺️ Player Heatmap</div>',
-                unsafe_allow_html=True)
+    # ── Tabs: Output Video | Player Heatmap ───────────────────────────────
+    tab_video, tab_heatmap = st.tabs(["📹 Output Video", "🗺️ Player Heatmap"])
 
-    col_vid, col_heat = st.columns([3, 2], gap="medium")
-
-    with col_vid:
+    # ── Tab 1: Video + Speed Stats + Advanced Stats ───────────────────────
+    with tab_video:
+        # Video player
         if os.path.exists(mp4_path):
             with open(mp4_path, "rb") as f:
                 st.video(f.read())
         else:
             st.error("Video file not found.")
 
-    with col_heat:
-        if heatmap_path and os.path.exists(heatmap_path):
-            st.image(heatmap_path, use_container_width=True, caption="Movement heatmap — both players")
-        else:
-            st.warning("Heatmap not generated.")
+        # Speed stats
+        st.markdown('<div class="section-title">⚡ Speed Statistics</div>', unsafe_allow_html=True)
 
-    # ── Section 2: Speed stats ─────────────────────────────────────────────
-    st.markdown('<div class="section-title">⚡ Speed Statistics</div>', unsafe_allow_html=True)
+        c1, c2, c3, c4 = st.columns(4, gap="small")
+        p1 = speed_stats.get(1, {"avg": 0, "max": 0})
+        p2 = speed_stats.get(2, {"avg": 0, "max": 0})
 
-    c1, c2, c3, c4 = st.columns(4, gap="small")
-    p1 = speed_stats.get(1, {"avg": 0, "max": 0})
-    p2 = speed_stats.get(2, {"avg": 0, "max": 0})
-
-    with c1:
-        st.markdown(f"""
-        <div class="metric-card">
-          <div class="label">🔵 Player 1 — Avg Speed</div>
-          <div class="value">{p1['avg']}</div>
-          <div class="unit">km/h</div>
-        </div>""", unsafe_allow_html=True)
-
-    with c2:
-        st.markdown(f"""
-        <div class="metric-card">
-          <div class="label">🔵 Player 1 — Max Speed</div>
-          <div class="value">{p1['max']}</div>
-          <div class="unit">km/h</div>
-        </div>""", unsafe_allow_html=True)
-
-    with c3:
-        st.markdown(f"""
-        <div class="metric-card p2">
-          <div class="label">🔴 Player 2 — Avg Speed</div>
-          <div class="value">{p2['avg']}</div>
-          <div class="unit">km/h</div>
-        </div>""", unsafe_allow_html=True)
-
-    with c4:
-        st.markdown(f"""
-        <div class="metric-card p2">
-          <div class="label">🔴 Player 2 — Max Speed</div>
-          <div class="value">{p2['max']}</div>
-          <div class="unit">km/h</div>
-        </div>""", unsafe_allow_html=True)
-
-    # ── Section 3: Advanced Stats slots ───────────────────────────────────
-    st.markdown('<div class="section-title">📊 Advanced Stats</div>', unsafe_allow_html=True)
-
-    s1, s2, s3, s4 = st.columns(4, gap="small")
-    slots = [
-        ("🎯", "Shot Count", "Player 1 vs Player 2"),
-        ("🔄", "Rally Length", "Avg / Max rallies"),
-        ("📐", "Court Coverage", "% court covered"),
-        ("➕", "Custom Stat", "Add your own metric"),
-    ]
-    for col, (icon, title, desc) in zip([s1, s2, s3, s4], slots):
-        with col:
+        with c1:
             st.markdown(f"""
-            <div class="slot-card">
-              <div class="slot-icon">{icon}</div>
-              <strong style="color:#4a5580">{title}</strong><br>
-              <span style="font-size:0.72rem">{desc}</span>
+            <div class="metric-card">
+              <div class="label">🔵 Player 1 — Avg Speed</div>
+              <div class="value">{p1['avg']}</div>
+              <div class="unit">km/h</div>
             </div>""", unsafe_allow_html=True)
+
+        with c2:
+            st.markdown(f"""
+            <div class="metric-card">
+              <div class="label">🔵 Player 1 — Max Speed</div>
+              <div class="value">{p1['max']}</div>
+              <div class="unit">km/h</div>
+            </div>""", unsafe_allow_html=True)
+
+        with c3:
+            st.markdown(f"""
+            <div class="metric-card p2">
+              <div class="label">🔴 Player 2 — Avg Speed</div>
+              <div class="value">{p2['avg']}</div>
+              <div class="unit">km/h</div>
+            </div>""", unsafe_allow_html=True)
+
+        with c4:
+            st.markdown(f"""
+            <div class="metric-card p2">
+              <div class="label">🔴 Player 2 — Max Speed</div>
+              <div class="value">{p2['max']}</div>
+              <div class="unit">km/h</div>
+            </div>""", unsafe_allow_html=True)
+
+        # Advanced stats slots
+        st.markdown('<div class="section-title">📊 Advanced Stats</div>', unsafe_allow_html=True)
+
+        s1, s2, s3, s4 = st.columns(4, gap="small")
+        slots = [
+            ("🎯", "Shot Count", "Player 1 vs Player 2"),
+            ("🔄", "Rally Length", "Avg / Max rallies"),
+            ("📐", "Court Coverage", "% court covered"),
+            ("➕", "Custom Stat", "Add your own metric"),
+        ]
+        for col, (icon, title, desc) in zip([s1, s2, s3, s4], slots):
+            with col:
+                st.markdown(f"""
+                <div class="slot-card">
+                  <div class="slot-icon">{icon}</div>
+                  <strong style="color:#4a5580">{title}</strong><br>
+                  <span style="font-size:0.72rem">{desc}</span>
+                </div>""", unsafe_allow_html=True)
+
+    # ── Tab 2: Player Heatmap ─────────────────────────────────────────────
+    with tab_heatmap:
+        if heatmap_path and os.path.exists(heatmap_path):
+            st.markdown('<div class="section-title">🗺️ Player Movement Heatmap</div>',
+                        unsafe_allow_html=True)
+            st.markdown(
+                "<p style='color:#7b8ab0; font-size:0.85rem; margin-bottom:16px;'>"
+                "Heatmap showing movement density for both players across the match. "
+                "Warmer colors indicate higher presence in that zone.</p>",
+                unsafe_allow_html=True
+            )
+            # Center the heatmap image
+            col_l, col_c, col_r = st.columns([1, 3, 1])
+            with col_c:
+                st.image(heatmap_path, use_container_width=True,
+                         caption="Movement heatmap — Player 1 & Player 2")
+        else:
+            st.warning("Heatmap not generated yet. Please run the analysis first.")
 
 else:
     # Placeholder khi chưa có kết quả
