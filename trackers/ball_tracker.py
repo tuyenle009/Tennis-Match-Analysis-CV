@@ -99,5 +99,40 @@ class BallTracker:
         
         return output_video_frames
 
+    def get_shot_count_per_player(self, frame_nums_with_ball_hits, player_detections, ball_detections):
+        """
+        Đếm số cú đánh của từng player.
+        Tại mỗi frame ball_hit, xem player nào gần bóng nhất → gán cú đánh cho player đó.
+        """
+        from utils import get_center_of_bbox, measure_distance
+
+        shot_count = {1: 0, 2: 0}
+
+        for frame_num in frame_nums_with_ball_hits:
+            # Kiểm tra frame có hợp lệ không
+            if frame_num >= len(ball_detections) or frame_num >= len(player_detections):
+                continue
+
+            ball_frame = ball_detections[frame_num]
+            player_frame = player_detections[frame_num]
+
+            # Bỏ qua nếu không có bóng hoặc không có player
+            if not ball_frame or 1 not in ball_frame:
+                continue
+            if not player_frame:
+                continue
+
+            ball_pos = get_center_of_bbox(ball_frame[1])
+
+            # Tìm player gần bóng nhất
+            closest_player_id = min(
+                player_frame.keys(),
+                key=lambda pid: measure_distance(ball_pos, get_center_of_bbox(player_frame[pid]))
+            )
+
+            if closest_player_id in shot_count:
+                shot_count[closest_player_id] += 1
+
+        return shot_count  # {1: 12, 2: 10}
 
     

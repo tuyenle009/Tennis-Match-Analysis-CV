@@ -1,5 +1,5 @@
 from utils import read_video, save_video
-from trackers import PlayerTracker, BallTracker
+from trackers import PlayerTracker, BallTracker, ball_tracker
 from court_line_detector import CourtLineDetector
 from mini_court import MiniCourt
 from speed_estimator import SpeedEstimator
@@ -91,8 +91,16 @@ def main():
         frame_height,
         padding=60
     )
+    
 
     cv2.imwrite(f'output_videos/heatmap_{number_of_vid}.png', heatmap_img)
+
+    # Shot count
+    frame_nums_with_ball_hits = ball_tracker.get_ball_shot_frames(ball_detections)
+    shot_count = ball_tracker.get_shot_count_per_player(
+        frame_nums_with_ball_hits, player_detections, ball_detections
+    )
+    print(f"✓ Shot count — Player 1: {shot_count[1]}, Player 2: {shot_count[2]}")
 
 if __name__ == "__main__":
     main()

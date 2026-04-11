@@ -303,6 +303,12 @@ def run_pipeline(input_video_path: str, video_stem: str,
     speeds = speed_estimator.calculate_speed(player_mini, mini_court.get_width_of_mini_court())
     speed_stats = calculate_speed_stats(speeds)
     log("✓ Speed estimation done")
+    log("⏳ Counting shots per player...", "run")
+    frame_nums_with_ball_hits = ball_tracker.get_ball_shot_frames(ball_detections)
+    shot_count = ball_tracker.get_shot_count_per_player(
+        frame_nums_with_ball_hits, player_detections, ball_detections
+    )
+    log(f"✓ Shot count — P1: {shot_count[1]}, P2: {shot_count[2]}")
 
     # ── Draw output frames ────────────────────────────────────────────────
     log("⏳ Rendering output video...", "run")
@@ -341,7 +347,7 @@ def run_pipeline(input_video_path: str, video_stem: str,
     log("✓ Heatmap saved")
     log("🎾 Analysis complete!", "ok")
 
-    return mp4_path, heatmap_path, speed_stats
+    return mp4_path, heatmap_path, speed_stats, shot_count
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -391,7 +397,7 @@ if run_btn and uploaded and video_stem:
         tmp_path = tmp.name
 
     with st.spinner("Running pipeline..."):
-        mp4_path, heatmap_path, speed_stats = run_pipeline(
+        mp4_path, heatmap_path, speed_stats, shot_count  = run_pipeline(
             input_video_path=tmp_path,
             video_stem=video_stem,
             conf=conf,
@@ -404,6 +410,7 @@ if run_btn and uploaded and video_stem:
         st.session_state["heatmap_path"] = heatmap_path
         st.session_state["speed_stats"]  = speed_stats
         st.session_state["video_stem"]   = video_stem
+        st.session_state["shot_count"] = shot_count
 
 # ══════════════════════════════════════════════════════════════════════════════
 # Results section (persistent via session_state)
@@ -462,6 +469,27 @@ if "mp4_path" in st.session_state:
               <div class="label">🔴 Player 2 — Max Speed</div>
               <div class="value">{p2['max']}</div>
               <div class="unit">km/h</div>
+            </div>""", unsafe_allow_html=True)
+
+
+
+        shot_count = st.session_state.get("shot_count", {1: 0, 2: 0})
+
+        sc1, sc2 = st.columns(2, gap="small")
+        with sc1:
+            st.markdown(f"""
+            <div class="metric-card">
+            <div class="label">🔵 Player 1 — Shot Count</div>
+            <div class="value">{shot_count.get(1, 0)}</div>
+            <div class="unit">shots</div>
+            </div>""", unsafe_allow_html=True)
+
+        with sc2:
+            st.markdown(f"""
+            <div class="metric-card p2">
+            <div class="label">🔴 Player 2 — Shot Count</div>
+            <div class="value">{shot_count.get(2, 0)}</div>
+            <div class="unit">shots</div>
             </div>""", unsafe_allow_html=True)
 
         # Advanced stats slots
