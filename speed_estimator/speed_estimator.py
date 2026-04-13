@@ -75,3 +75,25 @@ class SpeedEstimator:
 
             output_frames.append(frame)
         return output_frames
+    
+    def calculate_total_distance(self, player_mini_court_detections, court_drawing_width):
+        """
+        Tính tổng quãng đường mỗi cầu thủ đã chạy (mét).
+        """
+        pixel_per_meter = court_drawing_width / constants.DOUBLE_LINE_WIDTH
+        total_distance = {1: 0.0, 2: 0.0}
+        
+        for frame_num in range(1, len(player_mini_court_detections)):
+            curr = player_mini_court_detections[frame_num]
+            prev = player_mini_court_detections[frame_num - 1]
+            
+            for player_id in curr:
+                if player_id not in prev:
+                    continue
+                distance_px = measure_distance(curr[player_id], prev[player_id])
+                distance_m = distance_px / pixel_per_meter
+                if player_id in total_distance:
+                    total_distance[player_id] += distance_m
+        
+        # Round kết quả
+        return {pid: round(dist, 2) for pid, dist in total_distance.items()}

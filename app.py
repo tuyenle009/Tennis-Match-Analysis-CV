@@ -301,6 +301,12 @@ def run_pipeline(input_video_path: str, video_stem: str,
     # ── Speed estimation ──────────────────────────────────────────────────
     speed_estimator = SpeedEstimator(fps=fps)
     speeds = speed_estimator.calculate_speed(player_mini, mini_court.get_width_of_mini_court())
+    total_distances = speed_estimator.calculate_total_distance(
+    player_mini,
+    mini_court.get_width_of_mini_court()
+    )
+    log(f"✓ Total distance — P1: {total_distances[1]}m, P2: {total_distances[2]}m")
+
     speed_stats = calculate_speed_stats(speeds)
     log("✓ Speed estimation done")
     log("⏳ Counting shots per player...", "run")
@@ -347,7 +353,7 @@ def run_pipeline(input_video_path: str, video_stem: str,
     log("✓ Heatmap saved")
     log("🎾 Analysis complete!", "ok")
 
-    return mp4_path, heatmap_path, speed_stats, shot_count
+    return mp4_path, heatmap_path, speed_stats, shot_count, total_distances
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -397,7 +403,7 @@ if run_btn and uploaded and video_stem:
         tmp_path = tmp.name
 
     with st.spinner("Running pipeline..."):
-        mp4_path, heatmap_path, speed_stats, shot_count  = run_pipeline(
+        mp4_path, heatmap_path, speed_stats, shot_count, total_distances  = run_pipeline(
             input_video_path=tmp_path,
             video_stem=video_stem,
             conf=conf,
@@ -411,6 +417,7 @@ if run_btn and uploaded and video_stem:
         st.session_state["speed_stats"]  = speed_stats
         st.session_state["video_stem"]   = video_stem
         st.session_state["shot_count"] = shot_count
+        st.session_state["total_distances"] = total_distances
 
 # ══════════════════════════════════════════════════════════════════════════════
 # Results section (persistent via session_state)
@@ -472,6 +479,7 @@ if "mp4_path" in st.session_state:
             </div>""", unsafe_allow_html=True)
 
 
+        st.markdown('<div class="section-title">🎾 Shot Count</div>', unsafe_allow_html=True)
 
         shot_count = st.session_state.get("shot_count", {1: 0, 2: 0})
 
@@ -491,6 +499,30 @@ if "mp4_path" in st.session_state:
             <div class="value">{shot_count.get(2, 0)}</div>
             <div class="unit">shots</div>
             </div>""", unsafe_allow_html=True)
+
+
+
+        st.markdown('<div class="section-title">🏃 Total Distance</div>', unsafe_allow_html=True)
+
+        total_distances = st.session_state.get("total_distances", {1: 0.0, 2: 0.0})
+        d1, d2 = st.columns(2, gap="small")
+
+        with d1:
+            st.markdown(f"""
+            <div class="metric-card">
+            <div class="label">🔵 Player 1 — Total Distance</div>
+            <div class="value">{total_distances.get(1, 0.0)}</div>
+            <div class="unit">meters</div>
+            </div>""", unsafe_allow_html=True)
+
+        with d2:
+            st.markdown(f"""
+            <div class="metric-card p2">
+            <div class="label">🔴 Player 2 — Total Distance</div>
+            <div class="value">{total_distances.get(2, 0.0)}</div>
+            <div class="unit">meters</div>
+            </div>""", unsafe_allow_html=True)
+
 
         # Advanced stats slots
         st.markdown('<div class="section-title">📊 Advanced Stats</div>', unsafe_allow_html=True)

@@ -8,7 +8,7 @@ from heatmap import HeatmapGenerator
 import cv2
 
 def main():
-    number_of_vid = 8
+    number_of_vid = 10
     input_video_path = f'input_videos/inp_vid{number_of_vid}.mp4'
     video_frames = read_video(input_video_path)
 
@@ -22,11 +22,11 @@ def main():
     player_tracker = PlayerTracker(model_path='models/yolo26x.pt',use_polygon=True)
     ball_tracker = BallTracker(model_path='models/yolo26m_best_100e.pt')
     player_detections = player_tracker.detect_frames(video_frames, 
-                                                     read_from_stub=True,
+                                                     read_from_stub=False,
                                                      stub_path=f'tracker_stubs/player_detections_{number_of_vid}.pkl')
 
     ball_detections = ball_tracker.detect_frames(video_frames,
-                                                     read_from_stub=True,
+                                                     read_from_stub=False,
                                                      stub_path=f"tracker_stubs/ball_detections_{number_of_vid}.pkl")
 
     # Court keypoints
@@ -78,22 +78,22 @@ def main():
 
 
     # THAY BẰNG đoạn này:
-    heatmap_gen = HeatmapGenerator(
-        court_width=mini_court.court_end_x - mini_court.court_start_x,
-        court_height=mini_court.court_end_y - mini_court.court_start_y
-    )
+    # heatmap_gen = HeatmapGenerator(
+    #     court_width=mini_court.court_end_x - mini_court.court_start_x,
+    #     court_height=mini_court.court_end_y - mini_court.court_start_y
+    # )
 
-    frame_height = video_frames[0].shape[0]
+    # frame_height = video_frames[0].shape[0]
 
-    heatmap_img = heatmap_gen.generate_heatmap_standalone(
-        player_detections,    # tọa độ frame gốc, KHÔNG phải mini_court
-        court_keypoints,
-        frame_height,
-        padding=60
-    )
+    # heatmap_img = heatmap_gen.generate_heatmap(
+    #     player_detections,    # tọa độ frame gốc, KHÔNG phải mini_court
+    #     court_keypoints,
+    #     frame_height,
+    #     padding=60
+    # )
     
 
-    cv2.imwrite(f'output_videos/heatmap_{number_of_vid}.png', heatmap_img)
+    # cv2.imwrite(f'output_videos/heatmap_{number_of_vid}.png', heatmap_img)
 
     # Shot count
     frame_nums_with_ball_hits = ball_tracker.get_ball_shot_frames(ball_detections)
