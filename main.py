@@ -74,7 +74,7 @@ def main():
         cv2.putText(frame, f"Frame: {i+1}", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
 
     # Save
-    save_video(output_video_frames, f'output_videos/output_video_{number_of_vid}.avi')
+    save_video(output_video_frames, f'output_videos/output_inp_vid{number_of_vid}.avi')
 
 
     # THAY BẰNG đoạn này:
