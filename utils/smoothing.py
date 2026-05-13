@@ -1,7 +1,7 @@
 # utils/smoothing.py
 import pandas as pd
 
-def smooth_trajectory(player_mini_court_detections, window=5):
+def smooth_player_trajectory(player_mini_court_detections, window=5):
     """
     Làm mượt trajectory player bằng moving average — giảm jitter do bbox rung.
     Quan trọng để tính distance chính xác (không bị thổi phồng).

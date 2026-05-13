@@ -9,6 +9,8 @@ import numpy as np
 from pathlib import Path
 from utils import smooth_player_trajectory
 from trajectory import TrajectoryMapGenerator
+from rally_analysis import RallyAnalyzer, generate_insights
+from report import RallyReportPDF
 
 # ── Page config ──────────────────────────────────────────────────────────────
 st.set_page_config(
@@ -240,7 +242,7 @@ def run_pipeline(input_video_path: str, video_stem: str,
         from heatmap import HeatmapGenerator
     except ImportError as e:
         log(f"❌ Import error: {e}", "err")
-        return None, None, None
+        return None, None, None, None, None, None, None, None, None
 
     # ── Load video ────────────────────────────────────────────────────────
     log("⏳ Loading video frames...", "run")
@@ -295,19 +297,12 @@ def run_pipeline(input_video_path: str, video_stem: str,
     # ── Mini court + homography ───────────────────────────────────────────
     mini_court = MiniCourt(video_frames[0])
     mini_court.set_homography(court_keypoints)
+    
     player_mini, ball_mini = mini_court.convert_bounding_boxes_to_mini_court_coordinates(
         player_detections, ball_detections, court_keypoints
     )
     log("✓ Mini court coordinates computed")
 
-
-    # Trong hàm run_pipeline, sau dòng:
-    player_mini, ball_mini = mini_court.convert_bounding_boxes_to_mini_court_coordinates(
-        player_detections, ball_detections, court_keypoints
-    )
-    log("✓ Mini court coordinates computed")
-
-    # THÊM 2 DÒNG NÀY:
     player_mini = smooth_player_trajectory(player_mini, window=5)
     log("✓ Trajectory smoothed (window=5)")
 
@@ -322,6 +317,34 @@ def run_pipeline(input_video_path: str, video_stem: str,
 
     speed_stats = calculate_speed_stats(speeds)
     log("✓ Speed estimation done")
+
+    # ── Rally analysis ────────────────────────────────────────────────────
+    log("⏳ Analyzing rally...", "run")
+    analyzer = RallyAnalyzer(fps=fps, mini_court=mini_court)
+    rally_stats = analyzer.analyze(player_mini, ball_mini, speeds, total_distances)
+    insights = generate_insights(rally_stats)
+    log(f"✓ Rally analysis done — {len(insights)} insights")
+
+
+    # ── PDF Report ────────────────────────────────────────────────────────
+    log("⏳ Generating PDF report...", "run")
+    report_gen = RallyReportPDF()
+    pdf_path = os.path.join(output_dir, f"rally_report_{video_stem}.pdf")
+    try:
+        report_gen.generate(
+            rally_stats=rally_stats,
+            insights=insights,
+            trajectory_path=trajectory_path,
+            output_path=pdf_path,
+            video_name=video_stem,
+            fps=fps,
+        )
+        log("✓ PDF report saved")
+    except Exception as e:
+        log(f"⚠️ PDF generation failed: {e}", "err")
+        pdf_path = None
+
+
     log("⏳ Counting shots per player...", "run")
     frame_nums_with_ball_hits = ball_tracker.get_ball_shot_frames(ball_detections)
     shot_count = ball_tracker.get_shot_count_per_player(
@@ -377,7 +400,7 @@ def run_pipeline(input_video_path: str, video_stem: str,
 
     log("🎾 Analysis complete!", "ok")
 
-    return mp4_path, heatmap_path, trajectory_path, speed_stats, shot_count, total_distances
+    return mp4_path, heatmap_path, trajectory_path, speed_stats, shot_count, total_distances, rally_stats, insights, pdf_path
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -412,6 +435,18 @@ with st.sidebar:
     run_btn = st.button("▶ Run Analysis", disabled=(uploaded is None))
 
     st.divider()
+    # Download PDF button (chỉ hiện khi đã có PDF)
+    if st.session_state.get("pdf_path") and os.path.exists(st.session_state["pdf_path"]):
+        with open(st.session_state["pdf_path"], "rb") as f:
+            st.download_button(
+                label="📄 Download PDF Report",
+                data=f.read(),
+                file_name=os.path.basename(st.session_state["pdf_path"]),
+                mime="application/pdf",
+                use_container_width=True,
+            )
+
+    st.divider()
     st.markdown("### 📋 Processing Log")
     log_area = st.empty()
     log_area.markdown('<div class="log-box">Waiting for input...</div>', unsafe_allow_html=True)
@@ -427,7 +462,7 @@ if run_btn and uploaded and video_stem:
         tmp_path = tmp.name
 
     with st.spinner("Running pipeline..."):
-        mp4_path, heatmap_path, trajectory_path, speed_stats, shot_count, total_distances = run_pipeline(
+        mp4_path, heatmap_path, trajectory_path, speed_stats, shot_count, total_distances, rally_stats, insights, pdf_path  = run_pipeline(
             input_video_path=tmp_path,
             video_stem=video_stem,
             conf=conf,
@@ -443,7 +478,9 @@ if run_btn and uploaded and video_stem:
         st.session_state["video_stem"]   = video_stem
         st.session_state["shot_count"] = shot_count
         st.session_state["total_distances"] = total_distances
-
+        st.session_state["rally_stats"]     = rally_stats    # ← THÊM
+        st.session_state["insights"]        = insights       # ← THÊM
+        st.session_state["pdf_path"]        = pdf_path       # ← THÊM
 # ══════════════════════════════════════════════════════════════════════════════
 # Results section (persistent via session_state)
 # ══════════════════════════════════════════════════════════════════════════════
@@ -452,12 +489,15 @@ if "mp4_path" in st.session_state:
     heatmap_path = st.session_state["heatmap_path"]
     trajectory_path = st.session_state["trajectory_path"]
     speed_stats  = st.session_state["speed_stats"]
+    rally_stats     = st.session_state["rally_stats"]
+    insights        = st.session_state["insights"]
 
     # ── Tabs: Output Video | Player Heatmap ───────────────────────────────
-    tab_video, tab_trajectory, tab_heatmap = st.tabs([
+    tab_video, tab_trajectory, tab_heatmap, tab_insights = st.tabs([
     "📹 Output Video",
     "🗺️ Trajectory Map",
-    "🔥 Heatmap"
+    "🔥 Heatmap",
+    "📊 Rally Insights"
 ])
 
     # ── Tab 1: Video + Speed Stats + Advanced Stats ───────────────────────
@@ -569,22 +609,48 @@ if "mp4_path" in st.session_state:
         st.markdown('<div class="section-title">📊 Advanced Stats</div>', unsafe_allow_html=True)
 
         s1, s2, s3, s4 = st.columns(4, gap="small")
-        slots = [
-            ("📐", "Court Coverage", "Convex hull area (m²)"),
-            ("⚖️", "Movement Ratio", "P1 / P2 distance"),
-            ("⚡", "Sprint Count", "Bursts > 4 m/s"),
-            ("🎯", "Ball End Zone", "Where rally ended"),
+        
+        slots_data = [
+            ("📐", "Court Coverage",
+            f"P1: {rally_stats['coverage_areas'][1]:.0f}m² | P2: {rally_stats['coverage_areas'][2]:.0f}m²"),
+            ("⚖️", "Movement Ratio",
+            f"{rally_stats['movement_ratio']:.2f}x (P{rally_stats['high_runner']} nhiều hơn)"),
+            ("⚡", "Sprint Count",
+            f"P1: {rally_stats['sprint_counts'][1]} | P2: {rally_stats['sprint_counts'][2]}"),
+            ("🎯", "Ball End Zone",
+            rally_stats.get('ball_end_zone') or "N/A"),
         ]
-        for col, (icon, title, desc) in zip([s1, s2, s3, s4], slots):
+        for col, (icon, title, value) in zip([s1, s2, s3, s4], slots_data):
             with col:
                 st.markdown(f"""
                 <div class="slot-card">
-                  <div class="slot-icon">{icon}</div>
-                  <strong style="color:#4a5580">{title}</strong><br>
-                  <span style="font-size:0.72rem">{desc}</span>
+                <div class="slot-icon">{icon}</div>
+                <strong style="color:#4a5580">{title}</strong><br>
+                <span style="font-size:0.78rem; color:#2c3a50; font-weight:600">{value}</span>
                 </div>""", unsafe_allow_html=True)
 
-    # ── Tab 2: Player Heatmap ─────────────────────────────────────────────
+
+    # ── Tab 2: Trajectory Map ─────────────────────────────────────────────
+    with tab_trajectory:
+        if trajectory_path and os.path.exists(trajectory_path):
+            st.markdown('<div class="section-title">🗺️ Rally Trajectory Map</div>',
+                        unsafe_allow_html=True)
+            st.markdown(
+                "<p style='color:#7b8ab0; font-size:0.85rem; margin-bottom:16px;'>"
+                "Đường đi của 2 cầu thủ trong rally. "
+                "Màu sáng dần theo thời gian (đầu rally mờ → cuối rally đậm). "
+                "○ = điểm bắt đầu, ● = điểm kết thúc, "
+                "★ = vị trí bóng phát, ✕ = vị trí bóng ra ngoài.</p>",
+                unsafe_allow_html=True
+            )
+            col_l, col_c, col_r = st.columns([1, 3, 1])
+            with col_c:
+                st.image(trajectory_path, use_container_width=True,
+                        caption="Trajectory map — Player 1 (blue), Player 2 (red)")
+        else:
+            st.warning("Trajectory map not generated yet. Please run the analysis first.")
+
+    # ── Tab 3: Player Heatmap ─────────────────────────────────────────────
     with tab_heatmap:
         if heatmap_path and os.path.exists(heatmap_path):
             st.markdown('<div class="section-title">🗺️ Player Movement Heatmap</div>',
@@ -602,6 +668,83 @@ if "mp4_path" in st.session_state:
                          caption="Movement heatmap — Player 1 & Player 2")
         else:
             st.warning("Heatmap not generated yet. Please run the analysis first.")
+
+    # ── Tab 4: Rally Insights ─────────────────────────────────────────────
+    with tab_insights:
+        st.markdown('<div class="section-title">📊 Rally Performance Summary</div>',
+                    unsafe_allow_html=True)
+
+        # Bảng so sánh full
+        rs = rally_stats
+        table_html = f"""
+        <table style="width:100%; border-collapse:collapse; margin-bottom:20px;
+                    background:#F8F8FF; border-radius:8px; overflow:hidden;">
+        <thead>
+            <tr style="background:#1a3a6b; color:white;">
+            <th style="padding:10px; text-align:left;">Metric</th>
+            <th style="padding:10px; text-align:center;">🔵 Player 1</th>
+            <th style="padding:10px; text-align:center;">🔴 Player 2</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr style="border-bottom:1px solid #e0e6f0;">
+            <td style="padding:8px 10px;">Distance</td>
+            <td style="text-align:center;">{rs['distances'][1]:.1f} m</td>
+            <td style="text-align:center;">{rs['distances'][2]:.1f} m</td>
+            </tr>
+            <tr style="border-bottom:1px solid #e0e6f0;">
+            <td style="padding:8px 10px;">Peak Speed</td>
+            <td style="text-align:center;">{rs['peak_speeds'][1]} km/h</td>
+            <td style="text-align:center;">{rs['peak_speeds'][2]} km/h</td>
+            </tr>
+            <tr style="border-bottom:1px solid #e0e6f0;">
+            <td style="padding:8px 10px;">Avg Speed</td>
+            <td style="text-align:center;">{rs['avg_speeds'][1]} km/h</td>
+            <td style="text-align:center;">{rs['avg_speeds'][2]} km/h</td>
+            </tr>
+            <tr style="border-bottom:1px solid #e0e6f0;">
+            <td style="padding:8px 10px;">Sprint Count</td>
+            <td style="text-align:center;">{rs['sprint_counts'][1]}</td>
+            <td style="text-align:center;">{rs['sprint_counts'][2]}</td>
+            </tr>
+            <tr style="border-bottom:1px solid #e0e6f0;">
+            <td style="padding:8px 10px;">Court Coverage</td>
+            <td style="text-align:center;">{rs['coverage_areas'][1]:.0f} m²</td>
+            <td style="text-align:center;">{rs['coverage_areas'][2]:.0f} m²</td>
+            </tr>
+            <tr>
+            <td style="padding:8px 10px;">Position Style</td>
+            <td style="text-align:center;">{rs['position_styles'][1]}</td>
+            <td style="text-align:center;">{rs['position_styles'][2]}</td>
+            </tr>
+        </tbody>
+        </table>
+        """
+        st.markdown(table_html, unsafe_allow_html=True)
+
+        # Meta info
+        col1, col2 = st.columns(2)
+        with col1:
+            st.markdown(f"**⏱️ Duration**: {rs['duration_seconds']:.1f} seconds")
+        with col2:
+            st.markdown(f"**🎯 Ball End Zone**: {rs.get('ball_end_zone') or 'N/A'}")
+
+        # Insights
+        st.markdown('<div class="section-title">🔍 Auto-Generated Insights</div>',
+                    unsafe_allow_html=True)
+
+        if insights:
+            for ins in insights:
+                st.markdown(f"""
+                <div style="background:#f0f4fa; border-left:4px solid #4fc3f7;
+                            padding:10px 14px; margin-bottom:8px; border-radius:6px;
+                            color:#1a3a6b; font-size:0.92rem;">
+                • {ins}
+                </div>
+                """, unsafe_allow_html=True)
+        else:
+            st.info("Không có insight nào phù hợp với rule cho rally này.")
+
 
 else:
     # Placeholder khi chưa có kết quả
