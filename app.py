@@ -220,7 +220,8 @@ def run_pipeline(input_video_path: str, video_stem: str,
                  log_placeholder, output_dir: str = "output_videos"):
     """
     Chạy toàn bộ pipeline và trả về:
-      (output_mp4_path, heatmap_path, speed_stats)
+     (mp4_path, heatmap_path, trajectory_path, speed_stats, 
+       shot_count, total_distances, rally_stats, insights, pdf_path)
     """
     os.makedirs(output_dir, exist_ok=True)
 
@@ -326,23 +327,7 @@ def run_pipeline(input_video_path: str, video_stem: str,
     log(f"✓ Rally analysis done — {len(insights)} insights")
 
 
-    # ── PDF Report ────────────────────────────────────────────────────────
-    log("⏳ Generating PDF report...", "run")
-    report_gen = RallyReportPDF()
-    pdf_path = os.path.join(output_dir, f"rally_report_{video_stem}.pdf")
-    try:
-        report_gen.generate(
-            rally_stats=rally_stats,
-            insights=insights,
-            trajectory_path=trajectory_path,
-            output_path=pdf_path,
-            video_name=video_stem,
-            fps=fps,
-        )
-        log("✓ PDF report saved")
-    except Exception as e:
-        log(f"⚠️ PDF generation failed: {e}", "err")
-        pdf_path = None
+    
 
 
     log("⏳ Counting shots per player...", "run")
@@ -397,6 +382,27 @@ def run_pipeline(input_video_path: str, video_stem: str,
     trajectory_path = os.path.join(output_dir, f"trajectory_{video_stem}.png")
     cv2.imwrite(trajectory_path, trajectory_img)
     log("✓ Trajectory map saved")
+
+    # ── PDF Report ────────────────────────────────────────────────────────
+    log("⏳ Generating PDF report...", "run")
+    report_gen = RallyReportPDF()
+    pdf_path = os.path.join(output_dir, f"rally_report_{video_stem}.pdf")
+    try:
+        report_gen.generate(
+            rally_stats=rally_stats,
+            insights=insights,
+            trajectory_path=trajectory_path,
+            output_path=pdf_path,
+            video_name=video_stem,
+            fps=fps,
+        )
+        log("✓ PDF report saved")
+    except Exception as e:
+        log(f"⚠️ PDF generation failed: {e}", "err")
+        pdf_path = None
+
+
+
 
     log("🎾 Analysis complete!", "ok")
 
