@@ -4,11 +4,12 @@ from court_line_detector import CourtLineDetector
 from mini_court import MiniCourt
 from speed_estimator import SpeedEstimator
 from heatmap import HeatmapGenerator
+from utils import smooth_player_trajectory
 
 import cv2
 
 def main():
-    number_of_vid = 10
+    number_of_vid = 22
     input_video_path = f'input_videos/inp_vid{number_of_vid}.mp4'
     video_frames = read_video(input_video_path)
 
@@ -19,7 +20,7 @@ def main():
     print(f"✓ FPS: {fps}")
 
     # Detect players and balls in the video frames
-    player_tracker = PlayerTracker(model_path='models/yolo26x.pt',use_polygon=True)
+    player_tracker = PlayerTracker(model_path='models/yolo11m.pt',use_polygon=True)
     ball_tracker = BallTracker(model_path='models/yolo26m_best_100e.pt')
     player_detections = player_tracker.detect_frames(video_frames, 
                                                      read_from_stub=False,
@@ -44,6 +45,15 @@ def main():
     # Convert positions to mini court positions
     player_mini_court_detections, ball_mini_court_detections = mini_court.convert_bounding_boxes_to_mini_court_coordinates(
         player_detections, ball_detections, court_keypoints)
+
+
+    # Sau dòng convert_bounding_boxes...
+    player_mini_court_detections, ball_mini_court_detections = mini_court.convert_bounding_boxes_to_mini_court_coordinates(
+        player_detections, ball_detections, court_keypoints)
+
+    # THÊM:
+    player_mini_court_detections = smooth_player_trajectory(player_mini_court_detections, window=5)
+    print("✓ Trajectory smoothed")
 
     #: Tính tốc độ player
     speed_estimator = SpeedEstimator(fps=fps)

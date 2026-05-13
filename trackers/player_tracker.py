@@ -73,7 +73,7 @@ class PlayerTracker:
 
 
     def is_point_in_court(self, point, court_keypoints,
-                          padding_top=0.15, padding_bottom=0.2, padding_sides=0.05):
+                          padding_top=0.14, padding_bottom=0.2, padding_sides=0.05): #padding_top=0.15
         """
         Kiểm tra foot position có nằm trong sân không, dùng padding KHÔNG đồng đều:
           - padding_top    = 0.25 : mở rộng nhiều phía trên vì Player 1 hay đứng sát/vượt baseline trên

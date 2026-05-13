@@ -7,6 +7,8 @@ import tempfile
 import subprocess
 import numpy as np
 from pathlib import Path
+from utils import smooth_player_trajectory
+from trajectory import TrajectoryMapGenerator
 
 # ── Page config ──────────────────────────────────────────────────────────────
 st.set_page_config(
@@ -149,8 +151,8 @@ st.markdown("""
 <div class="app-header">
   <div>🎾</div>
   <div>
-    <h1>Tennis Analysis System</h1>
-    <p>Player tracking · Court detection · Speed estimation · Heatmap</p>
+    <h1>Tennis Rally Analytics</h1>
+    <p>Per-rally movement, speed & trajectory analysis for coaching</p>
   </div>
 </div>
 """, unsafe_allow_html=True)
@@ -298,6 +300,17 @@ def run_pipeline(input_video_path: str, video_stem: str,
     )
     log("✓ Mini court coordinates computed")
 
+
+    # Trong hàm run_pipeline, sau dòng:
+    player_mini, ball_mini = mini_court.convert_bounding_boxes_to_mini_court_coordinates(
+        player_detections, ball_detections, court_keypoints
+    )
+    log("✓ Mini court coordinates computed")
+
+    # THÊM 2 DÒNG NÀY:
+    player_mini = smooth_player_trajectory(player_mini, window=5)
+    log("✓ Trajectory smoothed (window=5)")
+
     # ── Speed estimation ──────────────────────────────────────────────────
     speed_estimator = SpeedEstimator(fps=fps)
     speeds = speed_estimator.calculate_speed(player_mini, mini_court.get_width_of_mini_court())
@@ -351,9 +364,20 @@ def run_pipeline(input_video_path: str, video_stem: str,
     heatmap_path = os.path.join(output_dir, f"heatmap_{video_stem}.png")
     cv2.imwrite(heatmap_path, heatmap_frame)
     log("✓ Heatmap saved")
+
+    # ── Trajectory Map ────────────────────────────────────────────────────
+    log("⏳ Generating trajectory map...", "run")
+    trajectory_gen = TrajectoryMapGenerator()
+    trajectory_img = trajectory_gen.generate(
+        player_mini, ball_mini, mini_court, video_frames[0].shape
+    )
+    trajectory_path = os.path.join(output_dir, f"trajectory_{video_stem}.png")
+    cv2.imwrite(trajectory_path, trajectory_img)
+    log("✓ Trajectory map saved")
+
     log("🎾 Analysis complete!", "ok")
 
-    return mp4_path, heatmap_path, speed_stats, shot_count, total_distances
+    return mp4_path, heatmap_path, trajectory_path, speed_stats, shot_count, total_distances
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -403,7 +427,7 @@ if run_btn and uploaded and video_stem:
         tmp_path = tmp.name
 
     with st.spinner("Running pipeline..."):
-        mp4_path, heatmap_path, speed_stats, shot_count, total_distances  = run_pipeline(
+        mp4_path, heatmap_path, trajectory_path, speed_stats, shot_count, total_distances = run_pipeline(
             input_video_path=tmp_path,
             video_stem=video_stem,
             conf=conf,
@@ -414,6 +438,7 @@ if run_btn and uploaded and video_stem:
     if mp4_path:
         st.session_state["mp4_path"]    = mp4_path
         st.session_state["heatmap_path"] = heatmap_path
+        st.session_state["trajectory_path"] = trajectory_path
         st.session_state["speed_stats"]  = speed_stats
         st.session_state["video_stem"]   = video_stem
         st.session_state["shot_count"] = shot_count
@@ -425,10 +450,15 @@ if run_btn and uploaded and video_stem:
 if "mp4_path" in st.session_state:
     mp4_path     = st.session_state["mp4_path"]
     heatmap_path = st.session_state["heatmap_path"]
+    trajectory_path = st.session_state["trajectory_path"]
     speed_stats  = st.session_state["speed_stats"]
 
     # ── Tabs: Output Video | Player Heatmap ───────────────────────────────
-    tab_video, tab_heatmap = st.tabs(["📹 Output Video", "🗺️ Player Heatmap"])
+    tab_video, tab_trajectory, tab_heatmap = st.tabs([
+    "📹 Output Video",
+    "🗺️ Trajectory Map",
+    "🔥 Heatmap"
+])
 
     # ── Tab 1: Video + Speed Stats + Advanced Stats ───────────────────────
     with tab_video:
@@ -479,7 +509,18 @@ if "mp4_path" in st.session_state:
             </div>""", unsafe_allow_html=True)
 
 
-        st.markdown('<div class="section-title">🎾 Shot Count</div>', unsafe_allow_html=True)
+        st.markdown(
+            '<div class="section-title">🚧 Shot Count '
+            '<span style="font-size:0.7rem; color:#f0c040; '
+            'background:#3a2f1a; padding:2px 8px; border-radius:4px; '
+            'margin-left:8px;">EXPERIMENTAL — IN DEVELOPMENT</span></div>',
+            unsafe_allow_html=True
+        )
+        st.caption(
+            "⚠️ Hit detection hiện đang ở giai đoạn phát triển. "
+            "Thuật toán dựa trên đổi dấu delta_y của bóng còn nhiều hạn chế "
+            "(perspective camera, ball detection gaps). Số liệu chỉ tham khảo."
+        )
 
         shot_count = st.session_state.get("shot_count", {1: 0, 2: 0})
 
@@ -529,10 +570,10 @@ if "mp4_path" in st.session_state:
 
         s1, s2, s3, s4 = st.columns(4, gap="small")
         slots = [
-            ("🎯", "Shot Count", "Player 1 vs Player 2"),
-            ("🔄", "Rally Length", "Avg / Max rallies"),
-            ("📐", "Court Coverage", "% court covered"),
-            ("➕", "Custom Stat", "Add your own metric"),
+            ("📐", "Court Coverage", "Convex hull area (m²)"),
+            ("⚖️", "Movement Ratio", "P1 / P2 distance"),
+            ("⚡", "Sprint Count", "Bursts > 4 m/s"),
+            ("🎯", "Ball End Zone", "Where rally ended"),
         ]
         for col, (icon, title, desc) in zip([s1, s2, s3, s4], slots):
             with col:
@@ -550,8 +591,8 @@ if "mp4_path" in st.session_state:
                         unsafe_allow_html=True)
             st.markdown(
                 "<p style='color:#7b8ab0; font-size:0.85rem; margin-bottom:16px;'>"
-                "Heatmap showing movement density for both players across the match. "
-                "Warmer colors indicate higher presence in that zone.</p>",
+                "Heatmap showing movement density for both players in this rally. "
+                "Warmer colors indicate zones where the player spent more time.",
                 unsafe_allow_html=True
             )
             # Center the heatmap image
@@ -571,7 +612,7 @@ else:
         Upload a video and click <b>Run Analysis</b> to get started
       </div>
       <div style="font-size: 0.85rem; margin-top: 8px; color: #2e3a55;">
-        Player tracking · Ball tracking · Court keypoints · Speed · Heatmap
-      </div>
+        Upload one rally video — get movement trajectory, speed metrics & tactical insights
+        </div>
     </div>
     """, unsafe_allow_html=True)
