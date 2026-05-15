@@ -145,6 +145,105 @@ st.markdown("""
     align-items: flex-start;
     padding: 16px 0;
   }
+            
+
+/* ── Welcome screen (empty state) ───────────────────────────── */
+  .welcome-screen {
+    padding: 40px 20px;
+    max-width: 1100px;
+    margin: 0 auto;
+  }
+  .welcome-hero {
+    text-align: center;
+    margin-bottom: 50px;
+  }
+  .welcome-icon {
+    font-size: 4rem;
+    margin-bottom: 16px;
+  }
+  .welcome-hero h1 {
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 2.4rem;
+    color: #1a3a6b;
+    margin: 0 0 8px 0;
+    letter-spacing: 1px;
+  }
+  .welcome-hero .tagline {
+    font-size: 1.1rem;
+    color: #5a6a90;
+    margin: 0 0 8px 0;
+  }
+  .welcome-hero .subtle {
+    font-size: 0.9rem;
+    color: #8898b5;
+    margin: 0;
+  }
+  .feature-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 20px;
+    margin-bottom: 50px;
+  }
+  .feature-card {
+    background: #f8faff;
+    border: 1px solid #e4eafb;
+    border-radius: 12px;
+    padding: 24px 18px;
+    text-align: center;
+    transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
+  }
+  .feature-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 20px rgba(26, 58, 107, 0.1);
+    border-color: #4fc3f7;
+  }
+  .feature-icon {
+    font-size: 2.2rem;
+    margin-bottom: 12px;
+  }
+  .feature-card h3 {
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 1.15rem;
+    color: #1a3a6b;
+    margin: 0 0 8px 0;
+    font-weight: 600;
+  }
+  .feature-card p {
+    font-size: 0.82rem;
+    color: #5a6a90;
+    line-height: 1.4;
+    margin: 0;
+  }
+  .quick-start {
+    background: linear-gradient(135deg, #f0f4fa, #e8f1fa);
+    border-left: 4px solid #4fc3f7;
+    border-radius: 8px;
+    padding: 20px 28px;
+    max-width: 600px;
+    margin: 0 auto;
+  }
+  .quick-start h4 {
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 1.1rem;
+    color: #1a3a6b;
+    margin: 0 0 12px 0;
+  }
+  .quick-start ol {
+    margin: 0;
+    padding-left: 22px;
+    color: #3a4560;
+    font-size: 0.9rem;
+  }
+  .quick-start li {
+    margin-bottom: 6px;
+  }
+  @media (max-width: 768px) {
+    .feature-grid {
+      grid-template-columns: repeat(2, 1fr);
+    }
+  }
+
+
 </style>
 """, unsafe_allow_html=True)
 
@@ -217,7 +316,8 @@ def calculate_speed_stats(speeds: list) -> dict:
 
 def run_pipeline(input_video_path: str, video_stem: str,
                  conf: float, use_polygon: bool,
-                 log_placeholder, output_dir: str = "output_videos"):
+                 log_placeholder, output_dir: str = "output_videos",
+                 progress_callback=None):
     """
     Chạy toàn bộ pipeline và trả về:
      (mp4_path, heatmap_path, trajectory_path, speed_stats, 
@@ -232,7 +332,12 @@ def run_pipeline(input_video_path: str, video_stem: str,
             '<div class="log-box">' + "<br>".join(logs) + "</div>",
             unsafe_allow_html=True
         )
-
+   # ── Progress helper ────────────────────────────────────────────────────
+    TOTAL_STEPS = 9
+    def update_progress(step_num, label):
+        if progress_callback:
+            pct = int(step_num / TOTAL_STEPS * 100)
+            progress_callback(pct, f"Step {step_num}/{TOTAL_STEPS}: {label}")
     # ── Import project modules (same directory) ───────────────────────────
     try:
         from utils import read_video, save_video
@@ -246,6 +351,7 @@ def run_pipeline(input_video_path: str, video_stem: str,
         return None, None, None, None, None, None, None, None, None
 
     # ── Load video ────────────────────────────────────────────────────────
+    update_progress(1, "Loading video frames")
     log("⏳ Loading video frames...", "run")
     video_frames = read_video(input_video_path)
     cap = cv2.VideoCapture(input_video_path)
@@ -258,6 +364,7 @@ def run_pipeline(input_video_path: str, video_stem: str,
     stubs = stub_exists(vid_id)
 
     # ── Player detection ──────────────────────────────────────────────────
+    update_progress(2, "Detecting players")
     if stubs["player"]:
         log(f"✓ Player stub found → loading pkl", "ok")
     else:
@@ -272,6 +379,7 @@ def run_pipeline(input_video_path: str, video_stem: str,
     log("✓ Player detections ready")
 
     # ── Ball detection ────────────────────────────────────────────────────
+    update_progress(3, "Detecting ball")
     if stubs["ball"]:
         log("✓ Ball stub found → loading pkl", "ok")
     else:
@@ -286,6 +394,7 @@ def run_pipeline(input_video_path: str, video_stem: str,
     log("✓ Ball detections ready")
 
     # ── Court keypoints ───────────────────────────────────────────────────
+    update_progress(4, "Detecting court keypoints")
     log("⏳ Detecting court keypoints (ResNet50)...", "run")
     court_detector = CourtLineDetector(model_path="models/keypoints_model_04.pth")
     court_keypoints = court_detector.predict(video_frames[0])
@@ -296,6 +405,7 @@ def run_pipeline(input_video_path: str, video_stem: str,
     log("✓ Players filtered")
 
     # ── Mini court + homography ───────────────────────────────────────────
+    update_progress(5, "Computing court coordinates")
     mini_court = MiniCourt(video_frames[0])
     mini_court.set_homography(court_keypoints)
     
@@ -308,6 +418,7 @@ def run_pipeline(input_video_path: str, video_stem: str,
     log("✓ Trajectory smoothed (window=5)")
 
     # ── Speed estimation ──────────────────────────────────────────────────
+    update_progress(6, "Analyzing rally & computing speeds")
     speed_estimator = SpeedEstimator(fps=fps)
     speeds = speed_estimator.calculate_speed(player_mini, mini_court.get_width_of_mini_court())
     total_distances = speed_estimator.calculate_total_distance(
@@ -338,6 +449,7 @@ def run_pipeline(input_video_path: str, video_stem: str,
     log(f"✓ Shot count — P1: {shot_count[1]}, P2: {shot_count[2]}")
 
     # ── Draw output frames ────────────────────────────────────────────────
+    update_progress(7, "Rendering output video")
     log("⏳ Rendering output video...", "run")
     out_frames = player_tracker.draw_bboxes(video_frames, player_detections)
     out_frames = ball_tracker.draw_bboxes(out_frames, ball_detections)
@@ -363,6 +475,7 @@ def run_pipeline(input_video_path: str, video_stem: str,
         mp4_path = avi_path
 
     # ── Heatmap ───────────────────────────────────────────────────────────
+    update_progress(8, "Generating visualizations")
     log("⏳ Generating heatmap...", "run")
     heatmap_gen = HeatmapGenerator(
         court_width=mini_court.court_end_x - mini_court.court_start_x,
@@ -384,6 +497,7 @@ def run_pipeline(input_video_path: str, video_stem: str,
     log("✓ Trajectory map saved")
 
     # ── PDF Report ────────────────────────────────────────────────────────
+    update_progress(9, "Creating PDF report")
     log("⏳ Generating PDF report...", "run")
     report_gen = RallyReportPDF()
     pdf_path = os.path.join(output_dir, f"rally_report_{video_stem}.pdf")
@@ -467,14 +581,29 @@ if run_btn and uploaded and video_stem:
         tmp.write(uploaded.read())
         tmp_path = tmp.name
 
-    with st.spinner("Running pipeline..."):
-        mp4_path, heatmap_path, trajectory_path, speed_stats, shot_count, total_distances, rally_stats, insights, pdf_path  = run_pipeline(
-            input_video_path=tmp_path,
-            video_stem=video_stem,
-            conf=conf,
-            use_polygon=use_polygon,
-            log_placeholder=log_area,
+    # Progress bar container (tách riêng để clear sau khi xong)
+    progress_container = st.empty()
+    with progress_container.container():
+        st.markdown(
+            '<div class="section-title">⏳ Analyzing Rally...</div>',
+            unsafe_allow_html=True
         )
+        progress_bar = st.progress(0, text="Initializing pipeline...")
+
+    def progress_callback(pct, step_label):
+        progress_bar.progress(pct / 100, text=step_label)
+
+    mp4_path, heatmap_path, trajectory_path, speed_stats, shot_count, total_distances, rally_stats, insights, pdf_path = run_pipeline(
+        input_video_path=tmp_path,
+        video_stem=video_stem,
+        conf=conf,
+        use_polygon=use_polygon,
+        log_placeholder=log_area,
+        progress_callback=progress_callback,
+    )
+
+    # Clear progress bar khi xong
+    progress_container.empty()
 
     if mp4_path:
         st.session_state["mp4_path"]    = mp4_path
@@ -487,6 +616,7 @@ if run_btn and uploaded and video_stem:
         st.session_state["rally_stats"]     = rally_stats    # ← THÊM
         st.session_state["insights"]        = insights       # ← THÊM
         st.session_state["pdf_path"]        = pdf_path       # ← THÊM
+        st.rerun()
 # ══════════════════════════════════════════════════════════════════════════════
 # Results section (persistent via session_state)
 # ══════════════════════════════════════════════════════════════════════════════
@@ -497,6 +627,31 @@ if "mp4_path" in st.session_state:
     speed_stats  = st.session_state["speed_stats"]
     rally_stats     = st.session_state["rally_stats"]
     insights        = st.session_state["insights"]
+
+    # ─── Mapping VN → EN cho hiển thị UI ─────────────────────
+    # (Giữ giá trị VN gốc trong rally_stats để dùng cho PDF + insights cards)
+    style_map = {
+        "tấn công":         "Attacking",
+        "phòng thủ":        "Defensive",
+        "trung lập":        "Neutral",
+        "không xác định":   "Unknown",
+    }
+    zone_map = {
+        "phía P1 - trái":   "P1 side - left",
+        "phía P1 - phải":   "P1 side - right",
+        "giữa sân - trái":  "Mid court - left",
+        "giữa sân - phải":  "Mid court - right",
+        "phía P2 - trái":   "P2 side - left",
+        "phía P2 - phải":   "P2 side - right",
+    }
+    p1_style = style_map.get(rally_stats['position_styles'].get(1),
+                              rally_stats['position_styles'].get(1, '-'))
+    p2_style = style_map.get(rally_stats['position_styles'].get(2),
+                              rally_stats['position_styles'].get(2, '-'))
+    zone_display = zone_map.get(rally_stats.get('ball_end_zone'),
+                                 rally_stats.get('ball_end_zone') or 'N/A')
+
+
 
     # ── Tabs: Output Video | Player Heatmap ───────────────────────────────
     tab_video, tab_trajectory, tab_heatmap, tab_insights = st.tabs([
@@ -563,9 +718,9 @@ if "mp4_path" in st.session_state:
             unsafe_allow_html=True
         )
         st.caption(
-            "⚠️ Hit detection hiện đang ở giai đoạn phát triển. "
-            "Thuật toán dựa trên đổi dấu delta_y của bóng còn nhiều hạn chế "
-            "(perspective camera, ball detection gaps). Số liệu chỉ tham khảo."
+            "⚠️ Hit detection is currently experimental. "
+            "The algorithm is based on the sign change of the ball's delta_y and still has many limitations "
+            "(perspective camera, ball detection gaps). The data is for reference only."
         )
 
         shot_count = st.session_state.get("shot_count", {1: 0, 2: 0})
@@ -620,11 +775,10 @@ if "mp4_path" in st.session_state:
             ("📐", "Court Coverage",
             f"P1: {rally_stats['coverage_areas'][1]:.0f}m² | P2: {rally_stats['coverage_areas'][2]:.0f}m²"),
             ("⚖️", "Movement Ratio",
-            f"{rally_stats['movement_ratio']:.2f}x (P{rally_stats['high_runner']} nhiều hơn)"),
+            f"{rally_stats['movement_ratio']:.2f}x (P{rally_stats['high_runner']} runs more)"),
             ("⚡", "Sprint Count",
             f"P1: {rally_stats['sprint_counts'][1]} | P2: {rally_stats['sprint_counts'][2]}"),
-            ("🎯", "Ball End Zone",
-            rally_stats.get('ball_end_zone') or "N/A"),
+            ("🎯", "Ball End Zone", zone_display),
         ]
         for col, (icon, title, value) in zip([s1, s2, s3, s4], slots_data):
             with col:
@@ -642,11 +796,10 @@ if "mp4_path" in st.session_state:
             st.markdown('<div class="section-title">🗺️ Rally Trajectory Map</div>',
                         unsafe_allow_html=True)
             st.markdown(
-                "<p style='color:#7b8ab0; font-size:0.85rem; margin-bottom:16px;'>"
-                "Đường đi của 2 cầu thủ trong rally. "
-                "Màu sáng dần theo thời gian (đầu rally mờ → cuối rally đậm). "
-                "○ = điểm bắt đầu, ● = điểm kết thúc, "
-                "★ = vị trí bóng phát, ✕ = vị trí bóng ra ngoài.</p>",
+                "Movement paths of both players during this rally. "
+                "Color brightens over time (start = dim, end = bright). "
+                "○ = start point, ● = end point, "
+                "★ = serve location, ✕ = ball-out location.",
                 unsafe_allow_html=True
             )
             col_l, col_c, col_r = st.columns([1, 3, 1])
@@ -682,6 +835,7 @@ if "mp4_path" in st.session_state:
 
         # Bảng so sánh full
         rs = rally_stats
+
         table_html = f"""
         <table style="width:100%; border-collapse:collapse; margin-bottom:20px;
                     background:#F8F8FF; border-radius:8px; overflow:hidden;">
@@ -720,8 +874,8 @@ if "mp4_path" in st.session_state:
             </tr>
             <tr>
             <td style="padding:8px 10px;">Position Style</td>
-            <td style="text-align:center;">{rs['position_styles'][1]}</td>
-            <td style="text-align:center;">{rs['position_styles'][2]}</td>
+            <td style="text-align:center;">{p1_style}</td>
+            <td style="text-align:center;">{p2_style}</td>
             </tr>
         </tbody>
         </table>
@@ -733,7 +887,7 @@ if "mp4_path" in st.session_state:
         with col1:
             st.markdown(f"**⏱️ Duration**: {rs['duration_seconds']:.1f} seconds")
         with col2:
-            st.markdown(f"**🎯 Ball End Zone**: {rs.get('ball_end_zone') or 'N/A'}")
+            st.markdown(f"**🎯 Ball End Zone**: {zone_display}")
 
         # Insights
         st.markdown('<div class="section-title">🔍 Auto-Generated Insights</div>',
@@ -749,19 +903,50 @@ if "mp4_path" in st.session_state:
                 </div>
                 """, unsafe_allow_html=True)
         else:
-            st.info("Không có insight nào phù hợp với rule cho rally này.")
+            st.info("No insights matched for this rally.")
 
 
 else:
-    # Placeholder khi chưa có kết quả
+    # Welcome screen — empty state khi chưa upload video
     st.markdown("""
-    <div style="text-align:center; padding: 80px 0; color: #3a4560;">
-      <div style="font-size: 4rem; margin-bottom: 16px;">🎾</div>
-      <div style="font-family: 'Rajdhani', sans-serif; font-size: 1.4rem; color: #5a6a90;">
-        Upload a video and click <b>Run Analysis</b> to get started
+    <div class="welcome-screen">
+      <div class="welcome-hero">
+        <div class="welcome-icon">🎾</div>
+        <h1>Tennis Rally Analytics</h1>
+        <p class="tagline">Per-rally analytics for tennis coaches and players</p>
+        <p class="subtle">Upload a rally video in the sidebar to get started</p>
       </div>
-      <div style="font-size: 0.85rem; margin-top: 8px; color: #2e3a55;">
-        Upload one rally video — get movement trajectory, speed metrics & tactical insights
+
+      <div class="feature-grid">
+        <div class="feature-card">
+          <div class="feature-icon">🗺️</div>
+          <h3>Trajectory Map</h3>
+          <p>Movement paths of both players with time-gradient visualization</p>
         </div>
+        <div class="feature-card">
+          <div class="feature-icon">📊</div>
+          <h3>Performance Metrics</h3>
+          <p>Speed, distance, sprint count, court coverage, position style</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">🔍</div>
+          <h3>Auto Insights</h3>
+          <p>Rule-based tactical analysis in natural language for coaches</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">📄</div>
+          <h3>PDF Report</h3>
+          <p>One-page coaching report — downloadable, printable, shareable</p>
+        </div>
+      </div>
+
+      <div class="quick-start">
+        <h4>Quick Start</h4>
+        <ol>
+          <li>Upload rally video in the sidebar</li>
+          <li>Configure detection settings (optional)</li>
+          <li>Click <strong>▶ Run Analysis</strong></li>
+        </ol>
+      </div>
     </div>
     """, unsafe_allow_html=True)
