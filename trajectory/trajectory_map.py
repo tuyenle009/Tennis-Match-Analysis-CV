@@ -179,30 +179,51 @@ class TrajectoryMapGenerator:
                  self.BALL_END_COLOR, 3, cv2.LINE_AA)
 
     def _add_legend(self, canvas):
-        """Legend nhỏ ở góc dưới trái."""
+        """Legend compact, semi-transparent — không che player."""
         h, w = canvas.shape[:2]
+
+        # Kích thước nhỏ hơn ~45% (130×62 px thay vì 180×90 px)
+        box_w, box_h = 105, 60
+        x0, y0 = 5, h - box_h - 5
+
+        # Nền tối transparent hơn (alpha 0.55 thay vì 0.75 → nhìn xuyên qua được)
         overlay = canvas.copy()
-        cv2.rectangle(overlay, (5, h - 95), (185, h - 5), (15, 15, 25), -1)
-        canvas[:] = cv2.addWeighted(overlay, 0.75, canvas, 0.25, 0)
+        cv2.rectangle(overlay, (x0, y0), (x0 + box_w, y0 + box_h),
+                    (15, 15, 25), -1)
+        canvas[:] = cv2.addWeighted(overlay, 0.55, canvas, 0.45, 0)
 
         font = cv2.FONT_HERSHEY_SIMPLEX
+        font_size = 0.32       # thay vì 0.42
+        line_h = 13            # khoảng cách giữa các dòng
+        marker_x = x0 + 10
+        text_x = x0 + 22
+        text_color = (230, 230, 230)
+
         # Player 1
-        cv2.circle(canvas, (20, h - 78), 6, self.PLAYER_COLORS[1], -1)
-        cv2.putText(canvas, "Player 1", (35, h - 74), font, 0.42,
-                    (230, 230, 230), 1, cv2.LINE_AA)
+        y = y0 + 12
+        cv2.circle(canvas, (marker_x, y), 4, self.PLAYER_COLORS[1], -1)
+        cv2.putText(canvas, "Player 1", (text_x, y + 3), font, font_size,
+                    text_color, 1, cv2.LINE_AA)
+
         # Player 2
-        cv2.circle(canvas, (20, h - 58), 6, self.PLAYER_COLORS[2], -1)
-        cv2.putText(canvas, "Player 2", (35, h - 54), font, 0.42,
-                    (230, 230, 230), 1, cv2.LINE_AA)
+        y += line_h
+        cv2.circle(canvas, (marker_x, y), 4, self.PLAYER_COLORS[2], -1)
+        cv2.putText(canvas, "Player 2", (text_x, y + 3), font, font_size,
+                    text_color, 1, cv2.LINE_AA)
+
         # Ball start
-        self._draw_star(canvas, (20, h - 36), 7, self.BALL_START_COLOR)
-        cv2.putText(canvas, "Ball start", (35, h - 32), font, 0.42,
-                    (230, 230, 230), 1, cv2.LINE_AA)
+        y += line_h
+        self._draw_star(canvas, (marker_x, y), 5, self.BALL_START_COLOR)
+        cv2.putText(canvas, "Ball start", (text_x, y + 3), font, font_size,
+                    text_color, 1, cv2.LINE_AA)
+
         # Ball end
-        cv2.line(canvas, (14, h - 20), (26, h - 8),
-                 self.BALL_END_COLOR, 2, cv2.LINE_AA)
-        cv2.line(canvas, (14, h - 8), (26, h - 20),
-                 self.BALL_END_COLOR, 2, cv2.LINE_AA)
-        cv2.putText(canvas, "Ball end (out)", (35, h - 11), font, 0.42,
-                    (230, 230, 230), 1, cv2.LINE_AA)
+        y += line_h
+        cv2.line(canvas, (marker_x - 4, y - 4), (marker_x + 4, y + 4),
+                self.BALL_END_COLOR, 2, cv2.LINE_AA)
+        cv2.line(canvas, (marker_x - 4, y + 4), (marker_x + 4, y - 4),
+                self.BALL_END_COLOR, 2, cv2.LINE_AA)
+        cv2.putText(canvas, "Ball end", (text_x, y + 3), font, font_size,
+                    text_color, 1, cv2.LINE_AA)
+
         return canvas

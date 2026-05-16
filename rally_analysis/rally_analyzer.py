@@ -14,8 +14,8 @@ class RallyAnalyzer:
     """Tính chỉ số per-rally từ player/ball tracking + speed data."""
 
     # Threshold (có thể tune sau)
-    SPRINT_SPEED_KMH   = 14.4    # = 4 m/s
-    SPRINT_MIN_FRAMES  = 3       # số frame liên tục tối thiểu để tính 1 sprint
+    SPRINT_SPEED_KMH   = 20.0    # = 4 m/s
+    SPRINT_MIN_FRAMES  = 5       # số frame liên tục tối thiểu để tính 1 sprint
     DEFENSE_RATIO      = 1.5     # ratio > đây = phòng thủ
     BASELINE_ATTACK_M  = 0.5     # sát baseline trong khoảng này = tấn công
     BASELINE_DEFENSE_M = 1.5     # lùi quá đây = phòng thủ

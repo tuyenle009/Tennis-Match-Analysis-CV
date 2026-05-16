@@ -9,7 +9,7 @@ from utils import smooth_player_trajectory
 import cv2
 
 def main():
-    number_of_vid = 22
+    number_of_vid = 7
     input_video_path = f'input_videos/inp_vid{number_of_vid}.mp4'
     video_frames = read_video(input_video_path)
 
@@ -20,14 +20,14 @@ def main():
     print(f"✓ FPS: {fps}")
 
     # Detect players and balls in the video frames
-    player_tracker = PlayerTracker(model_path='models/yolo11m.pt',use_polygon=True)
+    player_tracker = PlayerTracker(model_path='models/yolo26x.pt',use_polygon=True)
     ball_tracker = BallTracker(model_path='models/yolo26m_best_100e.pt')
     player_detections = player_tracker.detect_frames(video_frames, 
                                                      read_from_stub=False,
                                                      stub_path=f'tracker_stubs/player_detections_{number_of_vid}.pkl')
 
     ball_detections = ball_tracker.detect_frames(video_frames,
-                                                     read_from_stub=False,
+                                                     read_from_stub=True,
                                                      stub_path=f"tracker_stubs/ball_detections_{number_of_vid}.pkl")
 
     # Court keypoints

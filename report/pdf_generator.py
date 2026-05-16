@@ -213,7 +213,7 @@ class RallyReportPDF:
         cell = lambda txt: Paragraph(txt, body)
 
         rows = [
-            [cell("<b>Metric</b>"),
+            [cell("<b><font color='white'>Metric</font></b>"),
              cell("<b><font color='#2196f3'>Player 1</font></b>"),
              cell("<b><font color='#f44336'>Player 2</font></b>")],
             [cell("Distance"),

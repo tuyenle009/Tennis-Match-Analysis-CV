@@ -319,10 +319,11 @@ def run_pipeline(input_video_path: str, video_stem: str,
                  log_placeholder, output_dir: str = "output_videos",
                  progress_callback=None):
     """
-    Chạy toàn bộ pipeline và trả về:
-     (mp4_path, heatmap_path, trajectory_path, speed_stats, 
-       shot_count, total_distances, rally_stats, insights, pdf_path)
+    Chạy toàn bộ pipeline và trả về 9 giá trị.
+    Mỗi video có 1 folder riêng: output_videos/<video_stem>/
     """
+    # Tạo folder riêng cho video này (output_videos/inp_vid5/)
+    output_dir = os.path.join(output_dir, video_stem)
     os.makedirs(output_dir, exist_ok=True)
 
     logs = []
@@ -548,8 +549,9 @@ with st.sidebar:
 
     st.divider()
     st.markdown("### ⚙️ Config")
-    conf       = st.slider("Ball detection confidence", 0.1, 0.9, 0.3, 0.05)
-    use_polygon = st.checkbox("Use polygon filtering", value=True)
+    conf       = st.slider("Ball detection confidence", 0.1, 0.9, 0.25, 0.05)
+    # use_polygon = st.checkbox("Use polygon filtering", value=True)
+    use_polygon= True
 
     st.divider()
     run_btn = st.button("▶ Run Analysis", disabled=(uploaded is None))
