@@ -7,6 +7,8 @@
 
 ## 🖼️ Demo
 
+![Demo](demo/demo.gif)
+
 | Output Video | Trajectory Map | Heatmap |
 |:---:|:---:|:---:|
 | ![output](demo/output_preview.png) | ![trajectory](demo/trajectory.png) | ![heatmap](demo/heatmap.png) |
