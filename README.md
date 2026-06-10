@@ -1,3 +1,4 @@
+<img width="600" height="338" alt="demo" src="https://github.com/user-attachments/assets/34b08f39-245c-4bc5-80da-eda2e6329c0c" />
 # 🎾 Tennis Rally Analytics — Computer Vision-Based System for Tennis Match Analysis
 
 > **Graduation Project** — Le Duc Tuyen | Hung Yen University of Technology and Education
@@ -6,8 +7,7 @@
 ---
 
 ## 🖼️ Demo
-
-![Demo](demo/demo.gif)
+<img width="600" height="338" alt="demo" src="https://github.com/user-attachments/assets/f9e1f73e-4a2f-4736-94bc-3ad7422c0948" />
 
 | Output Video | Trajectory Map | Heatmap |
 |:---:|:---:|:---:|
