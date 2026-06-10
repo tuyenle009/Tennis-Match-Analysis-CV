@@ -1,7 +1,6 @@
 # 🎾 Tennis Rally Analytics — Computer Vision-Based System for Tennis Match Analysis
 
-> Le Duc Tuyen | Hung Yen University of Technology and Education
-> Major: Artificial Intelligence and Data Science | Supervisor: Trung-Hieu Le, PhD
+> Le Duc Tuyen | Hung Yen University of Technology and Education | Supervisor: Trung-Hieu Le, PhD
 
 ---
 
