@@ -1,13 +1,12 @@
-<img width="600" height="338" alt="demo" src="https://github.com/user-attachments/assets/34b08f39-245c-4bc5-80da-eda2e6329c0c" />
 # 🎾 Tennis Rally Analytics — Computer Vision-Based System for Tennis Match Analysis
 
-> **Graduation Project** — Le Duc Tuyen | Hung Yen University of Technology and Education
+> Le Duc Tuyen | Hung Yen University of Technology and Education
 > Major: Artificial Intelligence and Data Science | Supervisor: Trung-Hieu Le, PhD
 
 ---
 
 ## 🖼️ Demo
-<img width="600" height="338" alt="demo" src="https://github.com/user-attachments/assets/f9e1f73e-4a2f-4736-94bc-3ad7422c0948" />
+![Demo](demo/demo.gif)
 
 | Output Video | Trajectory Map | Heatmap |
 |:---:|:---:|:---:|
