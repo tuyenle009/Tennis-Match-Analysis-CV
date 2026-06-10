@@ -1,7 +1,15 @@
 # 🎾 Tennis Rally Analytics — Computer Vision-Based System for Tennis Match Analysis
 
-> **Graduation Project** — Le Duc Tuyen | Hung Yen University of Technology and Education  
+> **Graduation Project** — Le Duc Tuyen | Hung Yen University of Technology and Education
 > Major: Artificial Intelligence and Data Science | Supervisor: Trung-Hieu Le, PhD
+
+---
+
+## 🖼️ Demo
+
+| Output Video | Trajectory Map | Heatmap |
+|:---:|:---:|:---:|
+| ![output](demo/output_preview.png) | ![trajectory](demo/trajectory.png) | ![heatmap](demo/heatmap.png) |
 
 ---
 
@@ -76,6 +84,12 @@ tennis-rally-analytics/
 │
 ├── app.py                        # Streamlit web application (main entry)
 ├── main.py                       # Standalone pipeline runner
+├── requirements.txt              # Python dependencies
+├── demo/                         # Demo images for README
+│   ├── output_preview.png
+│   ├── trajectory.png
+│   └── heatmap.png
+│
 ├── constants/
 │   └── __init__.py               # Court dimensions (meters), player heights
 │
@@ -115,8 +129,10 @@ tennis-rally-analytics/
 │
 ├── models/                       # Trained model weights (not tracked in git)
 ├── tracker_stubs/                # Cached .pkl detections for fast re-runs
-└── output_videos/                # Per-video output folder
+└── output_videos/                # Per-video output folder (not tracked in git)
 ```
+
+> 📝 **Note:** The folders `models/`, `input_videos/`, `output_videos/`, and `tracker_stubs/` are not pushed to GitHub. You need to create them manually after cloning.
 
 ---
 
@@ -154,40 +170,74 @@ tennis-rally-analytics/
 
 ### Prerequisites
 
-```bash
-Python >= 3.8
-CUDA (optional, for GPU acceleration)
-```
+- Python **3.10** (recommended — tested on this version)
+- CUDA 11.8 (optional, for GPU acceleration)
+- FFmpeg (for AVI → MP4 video conversion)
 
-### Installation
+### Step 1 — Clone the repository
 
 ```bash
 git clone https://github.com/<your-username>/tennis-rally-analytics.git
 cd tennis-rally-analytics
+```
 
+### Step 2 — Create and activate virtual environment
+
+```bash
+# Create
+python -m venv env
+
+# Activate — Windows
+env\Scripts\activate
+
+# Activate — Mac/Linux
+source env/bin/activate
+```
+
+### Step 3 — Install PyTorch (choose one)
+
+```bash
+# If you have NVIDIA GPU with CUDA 11.8 (recommended)
+pip install torch==2.7.1+cu118 torchvision==0.22.1+cu118 --index-url https://download.pytorch.org/whl/cu118
+
+# If CPU only
+pip install torch torchvision
+```
+
+### Step 4 — Install remaining dependencies
+
+```bash
 pip install -r requirements.txt
 ```
 
-**Key dependencies:**
-- `ultralytics` — YOLO detection & tracking
-- `torch` / `torchvision` — ResNet50 keypoint model
-- `opencv-python` — video I/O, drawing, homography
-- `streamlit` — web application
-- `pandas` / `numpy` — data processing
-- `reportlab` — PDF report generation
+### Step 5 — Download Model Weights
 
-### Download Model Weights
+Download trained model weights from Google Drive:
 
-Place trained model files in the `models/` directory:
+> 🔗 **[Download models here](https://drive.google.com/your-link-here)**
+
+Place the downloaded files into the `models/` directory:
 
 ```
 models/
-├── yolo26m_best_100e.pt      # Ball detection
-├── yolo26x.pt                # Player detection (YOLO11m weights)
+├── yolo26m_best_100e.pt      # Ball detection (YOLO26m)
+├── yolo26x.pt                # Player detection (YOLO11m)
 └── keypoints_model_04.pth    # Court keypoint detection (ResNet50)
 ```
 
-### Run the Web Application
+### Step 6 — Create required folders
+
+```bash
+mkdir input_videos
+mkdir output_videos
+mkdir tracker_stubs
+```
+
+---
+
+## ▶️ Running the App
+
+### Web Application (Streamlit)
 
 ```bash
 streamlit run app.py
@@ -195,13 +245,13 @@ streamlit run app.py
 
 Then open `http://localhost:8501` in your browser.
 
-### Run the CLI Pipeline
+### CLI Pipeline
 
 ```bash
 python main.py
 ```
 
-Edit `number_of_vid` inside `main.py` to point to your input video.
+Edit `number_of_vid` inside `main.py` to point to your input video file.
 
 ---
 
@@ -215,7 +265,7 @@ The Streamlit app provides a fully interactive interface:
 - **Tab 3: Player Heatmap** — Gaussian density overlay on the mini court
 - **Tab 4: Rally Insights** — Performance comparison table + auto-generated tactical observations
 
-Stub caching (`.pkl` files) is used to skip YOLO inference on repeated runs, significantly reducing processing time.
+> ⚡ **Stub caching** (`.pkl` files) is used to skip YOLO inference on repeated runs, significantly reducing processing time for the same video.
 
 ---
 
@@ -248,7 +298,10 @@ The complete integrated system was evaluated on multiple real tennis match broad
 - Speed estimates consistent with expected professional tennis movement patterns
 - Automatic insights match manual coaching observations for tested rallies
 
-Known limitations: occasional ball misdetection under heavy motion blur; small homography errors at extreme camera angles; speed inaccuracy near court edges.
+**Known limitations:**
+- Occasional ball misdetection under heavy motion blur
+- Small homography errors at extreme camera angles
+- Speed inaccuracy near court edges
 
 ---
 
@@ -264,8 +317,6 @@ Known limitations: occasional ball misdetection under heavy motion blur; small h
 
 ## 📚 References
 
-Key references used in this project:
-
 - YOLO series — Ultralytics (YOLOv8 / YOLO11 / YOLO12 / YOLO26)
 - He et al. (2016) — Deep Residual Learning for Image Recognition (ResNet)
 - Hartley & Zisserman (2003) — Multiple View Geometry in Computer Vision
@@ -279,9 +330,9 @@ Full reference list is available in the thesis document.
 
 ## 👤 Author
 
-**Le Duc Tuyen**  
-Department of Computer Science — Faculty of Information Technology  
-Hung Yen University of Technology and Education  
+**Le Duc Tuyen**
+Department of Computer Science — Faculty of Information Technology
+Hung Yen University of Technology and Education
 Supervisor: **Trung-Hieu Le, PhD**
 
 ---
